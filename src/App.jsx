@@ -1,18 +1,37 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './index.css'
+import { useState } from "react";
+import MenuBar from "./components/layout/menuBar";
+import ToolBox from "./components/layout/toolBox";
+import CanvasArea from "./components/layout/canvasArea";
+import PropertiesPanel from "./components/layout/propertiesPanel";
+import Footer from "./components/layout/footer";
 
-
-
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [toolboxCollapsed, setToolboxCollapsed] = useState(false);
+  const [propertiesOpen, setPropertiesOpen] = useState(true);
 
   return (
-   <div className="h-screen  bg-red-800  flex items-center justify-center">
-      <h1 className='text-4xl font-bold'>This is the initial project setup, Tailwind CSS is working! All Directories ready</h1>
-    </div>
-  )
-}
+    <div className="flex h-screen w-screen flex-col">
+      <MenuBar />
 
-export default App
+      {/* In the App we will be using lucide-react icons */}
+      <div className="flex min-h-0 flex-1">
+        <ToolBox
+          collapsed={toolboxCollapsed}
+          onToggle={() => setToolboxCollapsed((v) => !v)}
+        />
+
+        <CanvasArea />
+
+        {/* Right panel hidden on small screens by default */}
+        <div className="hidden lg:block">
+          <PropertiesPanel
+            open={propertiesOpen}
+            onToggle={() => setPropertiesOpen((v) => !v)}
+          />
+        </div>
+      </div>
+
+      <Footer />
+    </div>
+  );
+}
