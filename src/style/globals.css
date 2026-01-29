@@ -1,0 +1,38 @@
+/*This file contains extra global styles for the application*/
+@import "tailwindcss";
+
+/* Tailwind v4 theme tokens */
+@theme {
+  --color-bg: black;
+  --color-panel: #111827;
+  --color-accent: #3b82f6;
+
+  --radius-lg: 12px;
+  --radius-md: 8px;
+}
+
+/* Base styles */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: rgb(229 231 235);
+  overflow: hidden;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Editor-specific globals */
+.canvas-container {
+  background: #020617;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
