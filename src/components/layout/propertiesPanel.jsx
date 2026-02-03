@@ -29,12 +29,15 @@ export default function PropertiesPanel({ open, onToggle }) {
           <div className="text-xs text-gray-300">
             Footer will later become the layer timeline. For now, this is a placeholder.
           </div>
-          <div className="mt-3 space-y-2">
+          <div id="layers" className="mt-3 space-y-2">
             <LayerRow name="Background" active />
             <LayerRow name="Image 1" />
           </div>
-          <button className="mt-3 w-full rounded-lg bg-white/5 px-3 py-2 text-sm hover:bg-white/10">
+          <button id="addLayer" className="mt-3 w-half rounded-lg bg-white/5 px-3 py-2 text-sm hover:bg-white/10">
             + Add Layer
+          </button>
+          <button id="rmLayer" className="mt-3 w-half rounded-lg bg-white/5 px-3 py-2 text-sm hover:bg-white/10">
+            - Remove Layer
           </button>
         </PanelCard>
 
