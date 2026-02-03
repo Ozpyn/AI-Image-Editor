@@ -19,3 +19,11 @@ def outpaint():
     # Should call a function that runs the AI-model once, then shuts it down
     # Returns the generated image
     return 1
+
+@app.route("/deblur")
+def outpaint():
+    # Should be provided a base image
+    # Should call a function that runs the AI-model once, then shuts it down
+    # Returns the generated image
+    return 1
+
