@@ -1,4 +1,5 @@
 from flask import Flask
+from ai import run_inpaint, run_outpaint, run_deblur
 
 app = Flask(__name__)
 
@@ -6,24 +7,43 @@ app = Flask(__name__)
 def welcome():
     return "AI-Image Editor Flask API"
 
-@app.route("/inpaint")
+@app.route("/inpaint", methods=["POST"])
 def inpaint():
-    # Should be provided two images: base image, and mask (should be same resolution or aspect ratio)
-    # Should call a function that runs the AI-model once, then shuts it down
-    # Returns the generated image
-    return 1
+    if "image" not in request.files or "mask" not in request.files:
+        return jsonify({"error": "image and mask are required"}), 400
 
-@app.route("/outpaint")
+    image = request.files["image"]
+    mask = request.files["mask"]
+
+    output_path = run_inpaint(image, mask)
+
+    return send_file(
+        output_path,
+        mimetype="image/png",
+        as_attachment=False
+    )
+
+@app.route("/outpaint", methods=["POST"])
 def outpaint():
-    # Should be provided two objects: base image, and list of north south east west [1,2,3,4]?
-    # Should call a function that runs the AI-model once, then shuts it down
-    # Returns the generated image
-    return 1
+    if "image" not in request.files:
+        return jsonify({"error": "image is required"}), 400
 
-@app.route("/deblur")
+    directions = request.form.get("directions")
+    if not directions:
+        return jsonify({"error": "directions required"}), 400
+
+    output_path = run_outpaint(
+        request.files["image"],
+        directions
+    )
+
+    return send_file(output_path, mimetype="image/png")
+
+@app.route("/deblur", methods=["POST"])
 def deblur():
-    # Should be provided a base image
-    # Should call a function that runs the AI-model once, then shuts it down
-    # Returns the generated image
-    return 1
+    if "image" not in request.files:
+        return jsonify({"error": "image is required"}), 400
 
+    output_path = run_deblur(request.files["image"])
+
+    return send_file(output_path, mimetype="image/png")
