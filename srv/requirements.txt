@@ -1,0 +1,9 @@
+flask
+diffusers
+transformers
+accelerate
+pillow
+
+--extra-index-url https://download.pytorch.org/whl/cu126
+torch
+torchvision
