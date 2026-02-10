@@ -1,0 +1,13 @@
+- - - - - -- -  - - - - - - - - 
+testing inpainting API 
+connect to server from vscode, activate venv: conda activate forStableDiff
+run api listen only to localhost, later change to 0.0.0.0: uvicorn api:app --host 127.0.0.1:8000 --port 8000
+create input.png image and mask.png on desktop
+leave api runing and open new terminal to run curl command below (bash): curl..(paste)
+ - - - - - - - - - - - - - - - - - 
+
+curl -X POST "http://127.0.0.1:8000/inpaint" \
+  -F "prompt=remove the object, realistic background" \
+  -F "image=@input.png" \
+  -F "mask=@mask.png" \
+  --output result.png

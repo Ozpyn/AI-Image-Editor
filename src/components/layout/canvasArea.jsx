@@ -5,11 +5,12 @@ import { useEffect, useRef } from "react";
 import { useCanvas } from "../../features/canvas/useCanvas";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
-export default function CanvasArea() {
+export default function CanvasArea({ activeTool }) {
   
   const fileRef = useRef(null);
   const stageRef = useRef(null);
-  const { canvasElRef, ready, actions } = useCanvas();
+  //forward the activeTool prop to useCanvas hook
+  const { canvasElRef, ready, actions } = useCanvas({ activeTool });
 
   useEffect(() => {
     if (!ready || !stageRef.current) return;

@@ -3,13 +3,14 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Canvas } from "fabric";
 
 import { fabricImageFromURL, loadImageFromFile } from "./loadImage";
-import { clearCanvas, exportPNG, fitObjectToCanvas, setCanvasSize } from "./canvasUtils";
+import { clearCanvas, setToolMode, exportPNG, fitObjectToCanvas, setCanvasSize } from "./canvasUtils";
 
-export function useCanvas() {
+export function useCanvas({ activeTool } = {}) {
   const canvasElRef = useRef(null);
   const fabricRef = useRef(null);
   const [ready, setReady] = useState(false);
 
+  // Initialize Fabric canvas
   useEffect(() => {
     if (!canvasElRef.current) return;
 
@@ -23,12 +24,22 @@ export function useCanvas() {
     setReady(true);
 
     return () => {
+      // Cleanup on unmount
       canvas.dispose();
       fabricRef.current = null;
       setReady(false);
     };
   }, []);
-
+  
+//here the canvas will listen to changes in activeTool prop & set the tool mode accordingly
+  useEffect(() => {
+    const canvas = fabricRef.current;
+    if (!ready || !canvas) return;
+    
+    setToolMode(canvas, activeTool || "select");
+  }, [activeTool, ready]);
+  
+//api object to expose canvas instance
   const api = useMemo(() => {
     return {
       get canvas() {

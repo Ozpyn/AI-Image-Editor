@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { useAiFeatures } from "../../features/aiFeatures/useAiFeatures";
 import {
   MousePointer2,
   Crop,
@@ -13,7 +15,7 @@ import {
 } from "lucide-react";
 
 const tools = [
-  { key: "select", label: "Select", icon: MousePointer2 },
+  { key: "select", label: "Select", icon: MousePointer2},
   { key: "crop", label: "Crop", icon: Crop },
   { key: "erase", label: "Erase", icon: Eraser },
   { key: "text", label: "Text", icon: Type },
@@ -24,7 +26,11 @@ const tools = [
   { key: "ai", label: "AI Remove", icon: Sparkles },
 ];
 
-export default function ToolBox({ collapsed, onToggle }) {
+export default function ToolBox({ collapsed, onToggle, onCanvasAction, activeTool, onToolSelect }) {
+    //before return create ai feature hook  
+    const { inpaint } = useAiFeatures();
+    //
+
   return (
     <aside
       className={[
@@ -58,7 +64,10 @@ export default function ToolBox({ collapsed, onToggle }) {
                 "group flex w-full items-center gap-3 rounded-lg px-3 py-2",
                 "hover:bg-white/10 active:bg-white/15",
                 "text-left",
+                //if the tool is active, highlight it
+                activeTool === key ? "bg-accent text-white" : "text-gray-200",
               ].join(" ")}
+              onClick={() => onToolSelect(key)}
             >
               <Icon className="h-4 w-4 text-gray-200" />
               {!collapsed && (
