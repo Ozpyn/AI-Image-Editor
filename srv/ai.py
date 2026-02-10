@@ -16,6 +16,8 @@ inpainting_pipe = StableDiffusionInpaintPipeline.from_pretrained(
 # We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
 
 def run_inpaint(image, mask, prompt=None):
+    image=Image.open(image)
+    mask=Image.open(mask)
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
 
@@ -30,6 +32,7 @@ def run_inpaint(image, mask, prompt=None):
     return result.images[0]
 
 def run_outpaint(image, directions, prompt=None):
+    image=Image.open(image)
     w, h = image.size
 
     x = directions.get("x", 0)
@@ -49,5 +52,6 @@ def run_outpaint(image, directions, prompt=None):
     return run_inpaint(mod_image, new_mask, prompt)
 
 def run_deblur(image):
+    image=Image.open(image)
     # Call and Run
     return
