@@ -29,7 +29,7 @@ def run_inpaint(image, mask, prompt=None):
             guidance_scale=0.0 if prompt == "" else 4.0,
             num_inference_steps=40,
         )
-    return result.images[0]
+    return result.images[0] # Needs to return the temporary file instead of a pillow object
 
 def run_outpaint(image, directions, prompt=None):
     image=Image.open(image)
