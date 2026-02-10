@@ -1,16 +1,16 @@
 import torch
 from PIL import Image
 from diffusers.utils import load_image
-from diffusers import AutoPipelineForInpainting
+from diffusers import KandinskyV22InpaintPipeline
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-inpainting_pipe = AutoPipelineForInpainting.from_pretrained(
+inpainting_pipe = KandinskyV22InpaintPipeline.from_pretrained(
     "kandinsky-community/kandinsky-2-2-decoder-inpaint",
     torch_dtype=torch.float16
 ).to(DEVICE)
 
-inpainting_pipe.enable_xformers_memory_efficient_attention()
+# inpainting_pipe.enable_xformers_memory_efficient_attention()
 
 # These might be changed later to implement Redis, which would allow us to queue jobs.
 # We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
