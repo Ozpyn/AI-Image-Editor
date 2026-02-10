@@ -1,12 +1,12 @@
 import torch
 from PIL import Image
 from diffusers.utils import load_image
-from diffusers import KandinskyV22InpaintPipeline
+from diffusers import StableDiffusionInpaintPipeline
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-inpainting_pipe = KandinskyV22InpaintPipeline.from_pretrained(
-    "kandinsky-community/kandinsky-2-2-decoder-inpaint",
+inpainting_pipe = StableDiffusionInpaintPipeline.from_pretrained(
+    "runwayml/stable-diffusion-inpainting",
     torch_dtype=torch.float16
 ).to(DEVICE)
 
