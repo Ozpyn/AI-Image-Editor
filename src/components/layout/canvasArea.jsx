@@ -49,16 +49,16 @@ export default function CanvasArea({ activeTool }) {
     <main className="relative flex min-w-0 flex-1 flex-col">
       {/* Top canvas toolbar */}
       <div className="flex h-12 items-center justify-between border-b border-white/10 bg-panel/30 px-3 backdrop-blur">
-        <div className="flex items-center gap-2 text-sm text-gray-300">
+        <div className="flex items-center gap-2 text-sm text-gray-600">
           <span className="hidden md:inline">Project:</span>
-          <span className="rounded-md bg-white/5 px-2 py-1 text-gray-200">
+          <span className="rounded-md bg-white/5 px-2 py-1 text-gray-400">
             Untitled
           </span>
         </div>
 
         <div className="flex items-center gap-1">
           <IconBtn label="Zoom out" icon={<ZoomOut className="h-4 w-4" />} />
-          <div className="rounded-md bg-white/5 px-2 py-1 text-sm text-gray-200">
+          <div className="rounded-md bg-white/5 px-2 py-1 text-sm text-gray-600">
             100%
           </div>
           <IconBtn label="Zoom in" icon={<ZoomIn className="h-4 w-4" />} />

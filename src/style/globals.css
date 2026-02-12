@@ -3,9 +3,9 @@
 
 /* Tailwind v4 theme tokens */
 @theme {
-  --color-bg: black;
-  --color-panel: #111827;
-  --color-accent: #3b82f6;
+  --color-bg: #f1f5f9;        /* soft grey background */
+  --color-panel: #ffffff;     /* white panels */
+  --color-accent: #0ea5e9;    /* soft indigo button contrast */
 
   --radius-lg: 12px;
   --radius-md: 8px;
@@ -19,20 +19,48 @@ body {
 
 body {
   background-color: var(--color-bg);
-  color: rgb(229 231 235);
+  color: #1e293b;
   overflow: hidden;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* Editor-specific globals */
 .canvas-container {
-  background: #020617;
+  background: #e2e8f0;
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius-lg);
 }
 
-::-webkit-scrollbar {
-  width: 6px;
+/* Panels / cards */
+.panel {
+  background: var(--color-panel);
+  border-radius: var(--radius-lg);
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.05);
 }
+
+/* Accent buttons */
+button {
+  background: var(--color-accent);
+  color: white;
+  border-radius: var(--radius-md);
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  background: #4f46e5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99,102,241,0.3);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
+  background: #cbd5f5;
+  border-radius: 10px;
 }

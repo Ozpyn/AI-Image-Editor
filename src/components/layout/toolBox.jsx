@@ -80,8 +80,8 @@ export default function ToolBox({ collapsed, onToggle, onCanvasAction, activeToo
         <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
           {!collapsed ? (
             <>
-              <div className="text-xs font-semibold text-gray-200">Tip</div>
-              <div className="mt-1 text-xs text-gray-300">
+              <div className="text-xs font-semibold text-gray-600">Tip</div>
+              <div className="mt-1 text-xs text-gray-600">
                 Pick a tool on the left. Our canvas is centered and scalable.
               </div>
             </>
