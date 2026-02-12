@@ -177,7 +177,6 @@ function enableEraseMode(canvas) {
 
   canvas.requestRenderAll();
 }
-
 function enableTextMode(canvas) {
   console.log("Text tool active from canvasUtils.js through useCanvas.jsx by App.jsx");
 
