@@ -1,11 +1,17 @@
-/* we will use fabric so: npm i fabric */
+
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Canvas } from "fabric";
 
 import { fabricImageFromURL, loadImageFromFile } from "./loadImage";
-import { clearCanvas, setToolMode, exportPNG, fitObjectToCanvas, setCanvasSize } from "./canvasUtils";
+import {
+  clearCanvas,
+  setToolMode,
+  exportPNG,
+  fitObjectToCanvas,
+  setCanvasSize,
+} from "./canvasUtils";
 
-export function useCanvas({ activeTool } = {}) {
+export function useCanvas({ activeTool, brushColor, brushSize } = {}) {
   const canvasElRef = useRef(null);
   const fabricRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -24,22 +30,29 @@ export function useCanvas({ activeTool } = {}) {
     setReady(true);
 
     return () => {
-      // Cleanup on unmount
       canvas.dispose();
       fabricRef.current = null;
       setReady(false);
     };
   }, []);
+
   
-//here the canvas will listen to changes in activeTool prop & set the tool mode accordingly
+  // Canvas listens to activeTool (and brush options) and sets mode accordingly
   useEffect(() => {
     const canvas = fabricRef.current;
     if (!ready || !canvas) return;
-    
-    setToolMode(canvas, activeTool || "select");
-  }, [activeTool, ready]);
-  
-//api object to expose canvas instance
+
+    if ((activeTool || "select") === "brush") {
+      setToolMode(canvas, "brush", {
+        color: brushColor ?? "#ff3b30",
+        size: brushSize ?? 12,
+      });
+    } else {
+      setToolMode(canvas, activeTool || "select");
+    }
+  }, [activeTool, brushColor, brushSize, ready]);
+
+  // api object to expose canvas instance
   const api = useMemo(() => {
     return {
       get canvas() {

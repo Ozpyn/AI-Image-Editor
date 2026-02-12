@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useAiFeatures } from "../../features/aiFeatures/useAiFeatures";
 import {
   MousePointer2,
@@ -15,7 +14,7 @@ import {
 } from "lucide-react";
 
 const tools = [
-  { key: "select", label: "Select", icon: MousePointer2},
+  { key: "select", label: "Select", icon: MousePointer2 },
   { key: "crop", label: "Crop", icon: Crop },
   { key: "erase", label: "Erase", icon: Eraser },
   { key: "text", label: "Text", icon: Type },
@@ -26,10 +25,18 @@ const tools = [
   { key: "ai", label: "AI Remove", icon: Sparkles },
 ];
 
-export default function ToolBox({ collapsed, onToggle, onCanvasAction, activeTool, onToolSelect }) {
-    //before return create ai feature hook  
-    const { inpaint } = useAiFeatures();
-    //
+export default function ToolBox({
+  collapsed,
+  onToggle,
+  activeTool,
+  onToolSelect,
+  // ✅ NEW brush props
+  brushColor,
+  brushSize,
+  onBrushColorChange,
+  onBrushSizeChange,
+}) {
+  const { inpaint } = useAiFeatures(); // (unused for now, fine)
 
   return (
     <aside
@@ -50,8 +57,13 @@ export default function ToolBox({ collapsed, onToggle, onCanvasAction, activeToo
           onClick={onToggle}
           className="inline-flex h-11 w-11 items-center justify-center rounded-lg hover:bg-white/10"
           aria-label={collapsed ? "Expand toolbox" : "Collapse toolbox"}
+          type="button"
         >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
         </button>
       </div>
 
@@ -64,18 +76,52 @@ export default function ToolBox({ collapsed, onToggle, onCanvasAction, activeToo
                 "group flex w-full items-center gap-3 rounded-lg px-3 py-2",
                 "hover:bg-white/10 active:bg-white/15",
                 "text-left",
-                //if the tool is active, highlight it
                 activeTool === key ? "bg-accent text-white" : "text-gray-200",
               ].join(" ")}
               onClick={() => onToolSelect(key)}
+              type="button"
             >
               <Icon className="h-4 w-4 text-gray-200" />
               {!collapsed && (
-                <span className="text-sm text-gray-200 group-hover:text-white">{label}</span>
+                <span className="text-sm text-gray-200 group-hover:text-white">
+                  {label}
+                </span>
               )}
             </button>
           ))}
         </div>
+
+        {/* Brush options panel  */}
+        {!collapsed && activeTool === "brush" && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="text-xs font-semibold text-gray-200">Brush Options</div>
+
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <label className="text-xs text-gray-300">Color</label>
+              <input
+                type="color"
+                value={brushColor}
+                onChange={(e) => onBrushColorChange?.(e.target.value)}
+                className="h-8 w-10 cursor-pointer rounded-md border border-white/10 bg-transparent"
+              />
+            </div>
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs text-gray-300">
+                <span>Size</span>
+                <span>{brushSize}</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={80}
+                value={brushSize}
+                onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
+                className="mt-2 w-full accent-white"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
           {!collapsed ? (
