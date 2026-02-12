@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_file
-from ai import run_inpaint, run_outpaint, run_deblur
+from ai import run_inpaint, run_outpaint, run_deblur, run_describe
 
 app = Flask(__name__)
 
@@ -43,3 +43,14 @@ def deblur():
     output_path = run_deblur(request.files["image"])
 
     return send_file(output_path, mimetype="image/png")
+
+@app.route("/describeme", methods=["POST"])
+def inpaint():
+    if "image" not in request.files:
+        return jsonify({"error": "image is required"}), 400
+
+    image = request.files["image"]
+
+    description = run_describe(image, mask)
+
+    return jsonify ({"description": description}), 200

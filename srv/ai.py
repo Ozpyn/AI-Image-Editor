@@ -55,3 +55,10 @@ def run_deblur(image):
     image=Image.open(image)
     # Call and Run
     return
+
+def run_describe(image):
+    image=Image.open(image)
+
+    # Call an AI function to describe the content of the image, will be useful to re-prompt inpaint and outpaint to get better results.
+
+    return description
