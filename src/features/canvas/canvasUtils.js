@@ -1,11 +1,18 @@
 
 import { PencilBrush, Textbox, IText } from "fabric";
 
+import { PencilBrush, Textbox, IText } from "fabric";
+
 
 const toolModes = {
   select: enableSelectMode,
   crop: enableCropMode,
   erase: enableEraseMode,
+  text: enableTextMode,
+  brush: enableBrushMode, 
+};
+
+
   text: enableTextMode,
   brush: enableBrushMode, 
 };
@@ -30,6 +37,7 @@ function enableSelectMode(canvas) {
 }
 
 export function setToolMode(canvas, mode = "select", options = {}) {
+export function setToolMode(canvas, mode = "select", options = {}) {
   if (!canvas) return;
 
   resetCanvasState(canvas);
@@ -39,8 +47,12 @@ export function setToolMode(canvas, mode = "select", options = {}) {
   // pass options into the tool enable function
   handler(canvas, options);
 
+  // pass options into the tool enable function
+  handler(canvas, options);
+
   canvas.requestRenderAll();
 }
+
 
 
 function resetCanvasState(canvas) {
@@ -177,7 +189,6 @@ function enableEraseMode(canvas) {
 
   canvas.requestRenderAll();
 }
-
 function enableTextMode(canvas) {
   console.log("Text tool active from canvasUtils.js through useCanvas.jsx by App.jsx");
 
