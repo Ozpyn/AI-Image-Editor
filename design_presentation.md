@@ -11,7 +11,13 @@ class: default
 
 ---
 
-# System Framework Design: Front-End
+# Framework: Front-End
+
+![bg vertical width:90% right:33%](tech1.png)
+![bg width:90% right:33%](tech2.png)
+![bg width:90% right:33%](tech3.png)
+
+Example Content
 
 ---
 
@@ -22,6 +28,14 @@ class: default
 ![bg width:90% right:33%](https://upload.wikimedia.org/wikipedia/commons/d/d6/Hf-logo-with-title.svg)
 
 Content
+
+---
+
+# AI Functions
+
+- Deblur
+- Inpainting
+- OutPainting
 
 ---
 
