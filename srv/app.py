@@ -14,10 +14,14 @@ def inpaint():
 
     image = request.files["image"]
     mask = request.files["mask"]
+    prompt = request.form.get("prompt")
 
-    output_path = run_inpaint(image, mask)
+    try:
+        output_path = run_inpaint(image, mask, prompt)
+        return send_file(output_path, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    return send_file(output_path, mimetype="image/png")
 
 @app.route("/outpaint", methods=["POST"])
 def outpaint():
