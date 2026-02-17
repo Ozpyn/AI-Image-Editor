@@ -30,8 +30,8 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
 # We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
 
 def run_inpaint(image, mask, prompt=None):
-    image = Image.open(image).convert("RGB")
-    mask = Image.open(mask).convert("RGB")
+    image = Image.open(image)
+    mask = Image.open(mask)
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
 

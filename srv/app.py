@@ -44,11 +44,14 @@ def inpaint():
     if "image" not in request.files or "mask" not in request.files:
         return jsonify({"error": "image and mask are required"}), 400
 
+    print("Try to get files")
+
     image = request.files["image"]
     mask = request.files["mask"]
     prompt = request.form.get("prompt")
 
     try:
+        print("try to inpaint")
         output_path = run_inpaint(image, mask, prompt)
         output_path = run_inpaint(
         request.files["image"],
