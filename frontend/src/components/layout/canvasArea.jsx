@@ -132,7 +132,7 @@ export default function CanvasArea({
 
                 <button
                   onClick={() => actions.reset()}
-                  className="rounded-lg bg-rose-800 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
+                  className="rounded-lg  bg-rose-800 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
                 >
                   Clear
                 </button>
