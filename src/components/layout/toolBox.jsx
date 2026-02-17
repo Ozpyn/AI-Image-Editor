@@ -55,7 +55,7 @@ export default function ToolBox({
 
         <button
           onClick={onToggle}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-white/10"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg hover:bg-white/10"
           aria-label={collapsed ? "Expand toolbox" : "Collapse toolbox"}
           type="button"
         >

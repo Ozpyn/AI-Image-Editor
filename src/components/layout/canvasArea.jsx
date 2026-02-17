@@ -134,7 +134,7 @@ export default function CanvasArea({ activeTool, brushColor, brushSize }) {
 function IconBtn({ icon, label }) {
   return (
     <button
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-white/10"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-sky-600 hover:bg-indigo-50 hover:text-indigo-600 transition"
       aria-label={label}
       title={label}
       type="button"

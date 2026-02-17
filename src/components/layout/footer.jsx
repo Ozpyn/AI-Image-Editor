@@ -25,7 +25,7 @@ export default function Footer() {
 function IconBtn({ icon, label }) {
   return (
     <button
-      className="inline-flex h-9 w-9 items-center justify-center rounded-lg hover:bg-white/10"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-lg hover:bg-white/10"
       aria-label={label}
       title={label}
     >
