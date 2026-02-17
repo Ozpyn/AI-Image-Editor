@@ -1,40 +1,8 @@
 {
-  "hash": "19fa575d",
-  "configHash": "871b1baa",
-  "lockfileHash": "c963f260",
-  "browserHash": "872d41fd",
-  "optimized": {
-    "react": {
-      "src": "../../node_modules/react/index.js",
-      "file": "react.js",
-      "fileHash": "d40fbaaf",
-      "needsInterop": true
-    },
-    "react-dom/client": {
-      "src": "../../node_modules/react-dom/client.js",
-      "file": "react-dom_client.js",
-      "fileHash": "0cfbb4db",
-      "needsInterop": true
-    },
-    "lucide-react": {
-      "src": "../../node_modules/lucide-react/dist/esm/lucide-react.js",
-      "file": "lucide-react.js",
-      "fileHash": "ba791096",
-      "needsInterop": false
-    },
-    "fabric": {
-      "src": "../../node_modules/fabric/dist/index.min.mjs",
-      "file": "fabric.js",
-      "fileHash": "15cc6c94",
-      "needsInterop": false
-    }
-  },
-  "chunks": {
-    "chunk-P6RTVJOB": {
-      "file": "chunk-P6RTVJOB.js"
-    },
-    "chunk-G3PMV62Z": {
-      "file": "chunk-G3PMV62Z.js"
-    }
-  }
+  "hash": "98925fe4",
+  "configHash": "e263e424",
+  "lockfileHash": "e3b0c442",
+  "browserHash": "365ae889",
+  "optimized": {},
+  "chunks": {}
 }
