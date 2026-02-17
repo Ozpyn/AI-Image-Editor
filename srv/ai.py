@@ -2,6 +2,7 @@ import torch
 from PIL import Image
 from diffusers.utils import load_image
 from diffusers import StableDiffusionInpaintPipeline
+import tempfile
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -16,8 +17,8 @@ inpainting_pipe = StableDiffusionInpaintPipeline.from_pretrained(
 # We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
 
 def run_inpaint(image, mask, prompt=None):
-    image=Image.open(image)
-    mask=Image.open(mask)
+    image = Image.open(image)
+    mask = Image.open(mask)
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
 
@@ -26,10 +27,14 @@ def run_inpaint(image, mask, prompt=None):
             prompt=prompt,
             image=image,
             mask_image=mask,
-            guidance_scale=0.0 if prompt == "" else 4.0,
+            guidance_scale=guidance,
             num_inference_steps=40,
         )
-    return result.images[0] # Needs to return the temporary file instead of a pillow object
+    
+    # Save to a temporary file
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    result.images[0].save(tmp.name)
+    return tmp.name
 
 def run_outpaint(image, directions, prompt=None):
     image=Image.open(image)
