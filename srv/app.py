@@ -85,8 +85,8 @@ def deblur():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/api/describeme", methods=["POST"])
-def desc():
+@app.route("/describeme", methods=["POST"])
+def inpaintDescribe():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 
