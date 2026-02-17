@@ -27,22 +27,17 @@ def inpaint():
     if "image" not in request.files or "mask" not in request.files:
         return jsonify({"error": "image and mask are required"}), 400
 
-    print("Try to get files")
-
-    image = request.files["image"]
-    mask = request.files["mask"]
-    prompt = request.form.get("prompt")
-
     try:
-        print("try to inpaint")
-        output_path = run_inpaint(image, mask, prompt)
-        print("try to send")
+        output_path = run_inpaint(
+        request.files["image"],
+        request.files["mask"],
+        request.form.get("prompt")
+        )
         return send_file(output_path, mimetype="image/png")
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-@app.route("/api/outpaint", methods=["POST"])
+@app.route("/outpaint", methods=["POST"])
 def outpaint():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
@@ -52,11 +47,10 @@ def outpaint():
         return jsonify({"error": "directions required"}), 400
 
     try:
-        directions = json.loads(directions)
         output_path = run_outpaint(
             request.files["image"],
             directions,
-            request.form.get("prompt")  # optional
+            request.form.get("prompt")
         )
         return send_file(output_path, mimetype="image/png")
     except Exception as e:
@@ -82,6 +76,7 @@ def inpaintDescribe():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 
+    description = run_describe(request.files["image"])
     description = run_describe(request.files["image"])
 
     return jsonify ({"description": description}), 200
