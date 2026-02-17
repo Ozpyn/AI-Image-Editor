@@ -21,9 +21,9 @@ flask run
 # Testing Endpoints:
 
 ```
-curl -X POST http://localhost:8000/inpaint \
+curl -X POST http://localhost:5000/inpaint \
         -F "image=@raw_image.jpg" \
-        -F "mask=@mask2.jpg" \
+        -F "mask=@mask1.jpg" \
         -F "prompt=A tiger riding a tricycle" \
         --output output.png
 ```
