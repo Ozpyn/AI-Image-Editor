@@ -1,8 +1,7 @@
 import torch
 from PIL import Image
 from diffusers.utils import load_image
-from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
-from transformers import BlipProcessor, BlipForConditionalGeneration
+from diffusers import StableDiffusionInpaintPipeline
 import tempfile
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -45,8 +44,8 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
 # We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
 
 def run_inpaint(image, mask, prompt=None):
-    image = Image.open(image).convert("RGB")
-    mask = Image.open(mask).convert("RGB")
+    image = Image.open(image)
+    mask = Image.open(mask)
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
 
@@ -56,8 +55,14 @@ def run_inpaint(image, mask, prompt=None):
             image=image,
             mask_image=mask,
             guidance_scale=guidance,
+            guidance_scale=guidance,
             num_inference_steps=40,
         )
+    
+    # Save to a temporary file
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    result.images[0].save(tmp.name)
+    return tmp.name
     
     # Save to a temporary file
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
