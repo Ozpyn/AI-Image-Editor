@@ -7,16 +7,23 @@ frontend/yarn-error.log*
 frontend/pnpm-debug.log*
 frontend/lerna-debug.log*
 
+# Frontend artifacts
 frontend/node_modules/
-frontend/dist
-frontend/dist-ssr
+frontend/dist/
+frontend/dist-ssr/
 frontend/*.local
-frontend/.vite
+frontend/.vite/
+
+# Root artifacts
+node_modules/
+dist/
+build/
+.env
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
@@ -25,8 +32,6 @@ frontend/.vite
 *.sw?
 
 # Server artifacts
-srv/__pycache__
-srv/.venv
-srv/__pycache__/*
+srv/__pycache__/
+srv/.venv/
 srv/app.log
-node_modules/
