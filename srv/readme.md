@@ -14,6 +14,10 @@ pip install -r requirements.txt
 flask run
 ```
 
+
+# leave that runing and open a new window
+
+```
 # Testing Endpoints:
 
 ```

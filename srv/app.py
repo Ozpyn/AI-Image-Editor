@@ -45,7 +45,7 @@ def deblur():
     return send_file(output_path, mimetype="image/png")
 
 @app.route("/describeme", methods=["POST"])
-def inpaint():
+def inpaintDescribe():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 
