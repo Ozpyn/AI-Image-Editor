@@ -23,5 +23,8 @@ curl -X POST http://localhost:8000/inpaint \
         -F "prompt=A tiger riding a tricycle" \
         --output output.png
 ```
+```
+curl -X POST http://localhost:8000/describe -F "image=@raw_image.jpg"
+```
 
 mask1.jpg should be used to test outpainting
