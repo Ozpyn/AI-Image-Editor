@@ -1,7 +1,7 @@
 import torch
 from PIL import Image
 from diffusers.utils import load_image
-from diffusers import StableDiffusionInpaintPipeline
+from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline, BlipProcessor, BlipForConditionalGeneration
 import tempfile
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -24,14 +24,15 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
     "Salesforce/blip-image-captioning-base"
 ).to(DEVICE)
 
+
 # inpainting_pipe.enable_xformers_memory_efficient_attention()
 
 # These might be changed later to implement Redis, which would allow us to queue jobs.
 # We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
 
 def run_inpaint(image, mask, prompt=None):
-    image = Image.open(image)
-    mask = Image.open(mask)
+    image = Image.open(image).convert("RGB")
+    mask = Image.open(mask).convert("RGB")
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
 
@@ -104,6 +105,7 @@ def run_deblur(image, prompt=None):
     result.images[0].save(tmp.name)
 
     return tmp.name
+
 
 def run_describe(image):
     image = Image.open(image).convert("RGB")

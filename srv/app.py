@@ -1,3 +1,6 @@
+from flask import Flask, request, jsonify, send_file, send_from_directory
+from ai import run_inpaint, run_outpaint, run_deblur, run_describe
+import json
 from flask import Flask, send_from_directory
 import os
 
@@ -40,6 +43,12 @@ def inpaint():
     if "image" not in request.files or "mask" not in request.files:
         return jsonify({"error": "image and mask are required"}), 400
 
+    try:
+        output_path = run_inpaint(
+        request.files["image"],
+        request.files["mask"],
+        request.form.get("prompt")  # optional
+        )
     print("Try to get files")
 
     image = request.files["image"]
@@ -66,9 +75,11 @@ def outpaint():
 
     try:
         directions = json.loads(directions)
+        directions = json.loads(directions)
         output_path = run_outpaint(
             request.files["image"],
             directions,
+            request.form.get("prompt")  # optional
             request.form.get("prompt")  # optional
         )
         return send_file(output_path, mimetype="image/png")
@@ -81,6 +92,14 @@ def deblur():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 
+    try:
+        output_path = run_deblur(
+            request.files["image"],
+            request.form.get("prompt")  # optional
+        )
+        return send_file(output_path, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     try:
         output_path = run_deblur(
             request.files["image"],
