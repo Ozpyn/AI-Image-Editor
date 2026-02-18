@@ -163,7 +163,8 @@ class: default
   - Text Tool: Click to place editable text objects
   - Brush Tool: Free-drawing with adjustable color and size
 
--  
+- Implemented API to run AI functions
+  - Inpainting and Describe
 ---
 # Tool Enabling Design Pattern
 - User clicks a tool in the Toolbox
@@ -175,6 +176,7 @@ class: default
 ---
 # Implementation Plan
 
+- Integrate the AI API endpoints as functions in the frontend
 
 ---
 
