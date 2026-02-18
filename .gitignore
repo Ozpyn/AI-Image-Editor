@@ -26,3 +26,4 @@ dist-ssr
 # Server artifacts
 srv/__pycache__
 srv/.venv
+srv/__pycache__/*
