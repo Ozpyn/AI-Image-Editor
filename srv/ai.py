@@ -1,7 +1,8 @@
 import torch
 from PIL import Image
 from diffusers.utils import load_image
-from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline, BlipProcessor, BlipForConditionalGeneration
+from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
+from transformers import BlipProcessor, BlipForConditionalGeneration
 import tempfile
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
