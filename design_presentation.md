@@ -45,11 +45,16 @@ class: default
 
 # Framework: Back-End
 
-![bg vertical width:90% right:33%](https://flask.palletsprojects.com/en/stable/_images/flask-name.svg)
-![bg width:90% right:33%](https://cdn.worldvectorlogo.com/logos/pytorch-2.svg)
-![bg width:90% right:33%](https://upload.wikimedia.org/wikipedia/commons/d/d6/Hf-logo-with-title.svg)
+![bg vertical width:90% right:30%](https://flask.palletsprojects.com/en/stable/_images/flask-name.svg)
+![bg width:90% right:30%](https://cdn.worldvectorlogo.com/logos/pytorch-2.svg)
+![bg width:90% right:30%](https://upload.wikimedia.org/wikipedia/commons/d/d6/Hf-logo-with-title.svg)
 
-Content
+- Built as a Flask REST API with workers
+- A worker can run the requested Compute
+- Using Models provided by HuggingFace
+    - runwayml/stable-diffusion-inpainting
+    - Salesforce/blip-image-captioning-base
+    - runwayml/stable-diffusion-v1-5
 
 ---
 

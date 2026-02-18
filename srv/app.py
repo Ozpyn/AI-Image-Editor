@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_file
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe
+import json
 
 app = Flask(__name__)
 
@@ -16,7 +17,7 @@ def inpaint():
         output_path = run_inpaint(
         request.files["image"],
         request.files["mask"],
-        request.form.get("prompt")
+        request.form.get("prompt")  # optional
         )
         return send_file(output_path, mimetype="image/png")
     except Exception as e:
@@ -32,10 +33,11 @@ def outpaint():
         return jsonify({"error": "directions required"}), 400
 
     try:
+        directions = json.loads(directions)
         output_path = run_outpaint(
             request.files["image"],
             directions,
-            request.form.get("prompt")
+            request.form.get("prompt")  # optional
         )
         return send_file(output_path, mimetype="image/png")
     except Exception as e:
@@ -47,9 +49,14 @@ def deblur():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 
-    output_path = run_deblur(request.files["image"])
-
-    return send_file(output_path, mimetype="image/png")
+    try:
+        output_path = run_deblur(
+            request.files["image"],
+            request.form.get("prompt")  # optional
+        )
+        return send_file(output_path, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/describeme", methods=["POST"])
 def inpaintDescribe():
