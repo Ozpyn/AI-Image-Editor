@@ -55,6 +55,7 @@ class: default
     - runwayml/stable-diffusion-inpainting
     - Salesforce/blip-image-captioning-base
     - runwayml/stable-diffusion-v1-5
+- PyTorch pipes the workload to the GPU(s)
 
 ---
 
