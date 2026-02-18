@@ -1,7 +1,7 @@
 import torch
 from PIL import Image
 from diffusers.utils import load_image
-from diffusers import StableDiffusionInpaintPipeline
+from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline, BlipProcessor, BlipForConditionalGeneration
 import tempfile
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
@@ -9,21 +9,7 @@ DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
 
 inpainting_pipe = StableDiffusionInpaintPipeline.from_pretrained(
     "runwayml/stable-diffusion-inpainting",
-    torch_dtype=DTYPE
-).to(DEVICE)
-
-deblur_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
-    "runwayml/stable-diffusion-v1-5",
-    torch_dtype=DTYPE
-).to(DEVICE)
-
-caption_processor = BlipProcessor.from_pretrained(
-    "Salesforce/blip-image-captioning-base"
-)
-
-caption_model = BlipForConditionalGeneration.from_pretrained(
-    "Salesforce/blip-image-captioning-base",
-    torch_dtype=DTYPE
+    torch_dtype=torch.float16
 ).to(DEVICE)
 
 deblur_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
@@ -38,14 +24,15 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
     "Salesforce/blip-image-captioning-base"
 ).to(DEVICE)
 
+
 # inpainting_pipe.enable_xformers_memory_efficient_attention()
 
 # These might be changed later to implement Redis, which would allow us to queue jobs.
 # We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
 
 def run_inpaint(image, mask, prompt=None):
-    image = Image.open(image)
-    mask = Image.open(mask)
+    image = Image.open(image).convert("RGB")
+    mask = Image.open(mask).convert("RGB")
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
 
@@ -70,6 +57,7 @@ def run_inpaint(image, mask, prompt=None):
     return tmp.name
 
 def run_outpaint(image, directions, prompt=None):
+    image=Image.open(image).convert("RGB")
     image=Image.open(image).convert("RGB")
     w, h = image.size
 
@@ -118,7 +106,22 @@ def run_deblur(image, prompt=None):
 
     return tmp.name
 
+
 def run_describe(image):
+    image = Image.open(image).convert("RGB")
+
+    inputs = caption_processor(image, return_tensors="pt").to(DEVICE)
+
+    with torch.inference_mode():
+        out = caption_model.generate(
+            **inputs,
+            max_new_tokens=50
+        )
+
+    description = caption_processor.decode(
+        out[0],
+        skip_special_tokens=True
+    )
     image = Image.open(image).convert("RGB")
 
     inputs = caption_processor(image, return_tensors="pt").to(DEVICE)
