@@ -10,14 +10,36 @@ class: default
 ### Aaliyah Creech, Nickson Ibrahim, Gabriel Mingle, Gloria Uwimbabazi 
 
 ---
+# Project OverView
+- A web-based image editing application
+
+- Allows users to import, edit, and enhance images interactively
+
+- Designed to integrate traditional image editing tools (Brush, Crop, Text, Erase, Etc) with AI-powered features (Deblur, Inpainting, Outpaint, Background Removal).
+
+---
 
 # Framework: Front-End
+## Front-End Architecture
+- Built as a Single Page Application (SPA)
 
-![bg vertical width:90% right:33%](tech1.png)
-![bg width:90% right:33%](tech2.png)
-![bg width:90% right:33%](tech3.png)
+- Component-based architecture using React
 
-Example Content
+- Canvas-based rendering for image manipulation using Fabric.js
+
+- Tool logic separated from UI logic for scalability and maintainability
+
+---
+# Front-End Technology Stack
+## Technologies & Libraries Used
+- **React (Vite)** – UI framework and fast development environment
+
+- **Fabric.js** – Canvas abstraction for image and object manipulation
+
+- **Tailwind CSS** – Responsive and consistent UI styling
+
+- **Lucide-React** – Icon library for professional UI icons
+
 
 ---
 
@@ -34,12 +56,33 @@ Content
 # AI Functions
 
 - Deblur
+
 - Inpainting
+
 - OutPainting
+
+- Background Removal
 
 ---
 
 # Interface Design
+## Main UI Layout
+
+- **Top Menu Bar** – File, Edit, Image, AI Tools
+
+- **Left Toolbox** – Editing tools (Select, Erase, Text, Brush, etc.)
+
+- **Center Canvas Area** – Main editing workspace
+
+- **Right Properties Panel** – Layers and adjustment controls
+
+- **Footer** – Status and future timeline controls
+
+
+---
+![bg fit](image-3.png)
+
+---
 ## Main UI Layout
 
 - **Top Menu Bar** – File, Edit, Image, AI Tools
@@ -69,6 +112,7 @@ Content
 
 - Visual highlight shows the currently active tool
 
+
 ---
 
 # Canvas Area Design
@@ -95,30 +139,25 @@ Content
 
 --- 
 
-# Implementation Status 
-- We designed UI (Gloria and Aaliyah)
 
-- We implemented some of the tools in the Toolbox: (Gloria and Nickson)
+---
+
+# Supported Editing Functions
+
+<!-- ai-enabled or otherwise -->
+
+---
+
+# Implementation Status 
+- we designed UI
+
+- We implemented some of the tools in the Toolbox:
   - Select Tool: Move, resize, and select objects
   - Erase Tool: Draws mask paths using Fabric’s brush system
   - Text Tool: Click to place editable text objects
   - Brush Tool: Free-drawing with adjustable color and size
 
-- Implemented API to run AI functions (Gabe)
-  - Inpainting and Describe
-
----
-
-# Editing Functions to be Supported by System
-
-<!-- ai-enabled or otherwise -->
-- Planning on implementing:
-  - Crop function
-  - Deblurring
-  - Inpainting/Outpainting
-  - Background removal
-  - Image Adjustments
-
+-  
 ---
 # Tool Enabling Design Pattern
 - User clicks a tool in the Toolbox
@@ -129,10 +168,7 @@ Content
 
 ---
 # Implementation Plan
-- Integrate the AI API endpoints as functions in the frontend
-- Backend optimization to prevent errors
-- Finalize UI design to ensure all AI/non-AI tools are working
-- Testing/Validation
+
 
 ---
 
