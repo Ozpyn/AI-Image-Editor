@@ -1,8 +1,6 @@
 
 import { PencilBrush, Textbox, IText } from "fabric";
 
-import { PencilBrush, Textbox, IText } from "fabric";
-
 
 const toolModes = {
   select: enableSelectMode,
@@ -10,7 +8,7 @@ const toolModes = {
   erase: enableEraseMode,
   text: enableTextMode,
   brush: enableBrushMode, 
-};
+
 
 
   text: enableTextMode,
@@ -291,6 +289,3 @@ function enableBrushMode(canvas, options = {}) {
   });
 
   canvas.requestRenderAll();
-}
-
-

@@ -15,7 +15,6 @@ class: default
 
 ---
 
-<<<<<<< HEAD
 # Framework: Back-End
 
 ![bg vertical width:90% right:33%](https://flask.palletsprojects.com/en/stable/_images/flask-name.svg)
@@ -23,9 +22,6 @@ class: default
 ![bg width:90% right:33%](https://upload.wikimedia.org/wikipedia/commons/d/d6/Hf-logo-with-title.svg)
 
 Content
-=======
-# System Framework Design: Back-End
->>>>>>> 07d9c64 (Update design_presentation.md)
 
 ---
 
