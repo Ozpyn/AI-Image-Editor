@@ -1,10 +1,23 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, send_from_directory
+import os
+
+app = Flask(
+    __name__,
+    static_folder="../frontend/dist",
+    static_url_path="/"
+)
+
+@app.route("/api/hello")
+def hello():
+    return {"message": "Hello from Flask"}
+
+from flask import Flask, request, jsonify, send_file
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe
 import json
 
 app = Flask(
     __name__,
-    static_folder="../frontend/dist",
+    static_folder="../dist",
     static_url_path="/"
 )
 
@@ -37,7 +50,7 @@ def inpaint():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/outpaint", methods=["POST"])
+@app.route("/api/outpaint", methods=["POST"])
 def outpaint():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
@@ -80,8 +93,8 @@ def deblur():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/describeme", methods=["POST"])
-def inpaintDescribe():
+@app.route("/api/describeme", methods=["POST"])
+def desc():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 

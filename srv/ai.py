@@ -25,7 +25,6 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
     "Salesforce/blip-image-captioning-base"
 ).to(DEVICE)
 
-
 # inpainting_pipe.enable_xformers_memory_efficient_attention()
 
 # These might be changed later to implement Redis, which would allow us to queue jobs.
@@ -106,7 +105,6 @@ def run_deblur(image, prompt=None):
     result.images[0].save(tmp.name)
 
     return tmp.name
-
 
 def run_describe(image):
     image = Image.open(image).convert("RGB")
