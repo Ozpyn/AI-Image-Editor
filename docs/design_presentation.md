@@ -58,7 +58,7 @@ class: default
 
 
 ---
-![bg fit](image-3.png)
+![bg fit](assets/image-3.png)
 
 ---
 
@@ -109,7 +109,7 @@ class: default
 
 ---
 
-![bg fit](erase-flow.png)
+![bg fit](assets/erase-flow.png)
 
 ---
 
