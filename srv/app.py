@@ -5,6 +5,22 @@ from flask import Flask, send_from_directory
 import os
 =======
 from flask import Flask, request, jsonify, send_file, send_from_directory
+=======
+from flask import Flask, send_from_directory
+import os
+
+app = Flask(
+    __name__,
+    static_folder="../frontend/dist",
+    static_url_path="/"
+)
+
+@app.route("/api/hello")
+def hello():
+    return {"message": "Hello from Flask"}
+
+from flask import Flask, request, jsonify, send_file
+>>>>>>> 45e83ce (frontend on api)
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe
 import json
 >>>>>>> 9cd1f18 (updates)
