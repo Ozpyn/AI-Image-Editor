@@ -121,6 +121,10 @@ class: default
 
 ---
 
+![bg fit](erase-flow.png)
+
+---
+
 # Framework: Back-End
 
 ![bg vertical width:90% right:30%](https://flask.palletsprojects.com/en/stable/_images/flask-name.svg)
