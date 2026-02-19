@@ -1,7 +1,9 @@
 import torch
 from PIL import Image
 from diffusers.utils import load_image
-from diffusers import StableDiffusionInpaintPipeline
+from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
+from transformers import BlipProcessor, BlipForConditionalGeneration
+import tempfile
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -10,14 +12,27 @@ inpainting_pipe = StableDiffusionInpaintPipeline.from_pretrained(
     torch_dtype=torch.float16
 ).to(DEVICE)
 
+deblur_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+    "runwayml/stable-diffusion-v1-5",
+    torch_dtype=torch.float16
+).to(DEVICE)
+
+caption_processor = BlipProcessor.from_pretrained(
+    "Salesforce/blip-image-captioning-base"
+)
+caption_model = BlipForConditionalGeneration.from_pretrained(
+    "Salesforce/blip-image-captioning-base"
+).to(DEVICE)
+
+
 # inpainting_pipe.enable_xformers_memory_efficient_attention()
 
 # These might be changed later to implement Redis, which would allow us to queue jobs.
 # We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
 
 def run_inpaint(image, mask, prompt=None):
-    image=Image.open(image)
-    mask=Image.open(mask)
+    image = Image.open(image).convert("RGB")
+    mask = Image.open(mask).convert("RGB")
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
 
@@ -26,13 +41,17 @@ def run_inpaint(image, mask, prompt=None):
             prompt=prompt,
             image=image,
             mask_image=mask,
-            guidance_scale=0.0 if prompt == "" else 4.0,
+            guidance_scale=guidance,
             num_inference_steps=40,
         )
-    return result.images[0] # Needs to return the temporary file instead of a pillow object
+    
+    # Save to a temporary file
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    result.images[0].save(tmp.name)
+    return tmp.name
 
 def run_outpaint(image, directions, prompt=None):
-    image=Image.open(image)
+    image=Image.open(image).convert("RGB")
     w, h = image.size
 
     x = directions.get("x", 0)
@@ -51,14 +70,48 @@ def run_outpaint(image, directions, prompt=None):
 
     return run_inpaint(mod_image, new_mask, prompt)
 
-def run_deblur(image):
-    image=Image.open(image)
-    # Call and Run
-    return
+def run_deblur(image, prompt=None):
+    image = Image.open(image).convert("RGB")
+
+    # Auto-generate caption if no prompt provided
+    if not prompt:
+        inputs = caption_processor(image, return_tensors="pt").to(DEVICE)
+        with torch.inference_mode():
+            out = caption_model.generate(**inputs, max_new_tokens=50)
+        prompt = caption_processor.decode(out[0], skip_special_tokens=True)
+
+    # Low strength keeps structure, reduces blur
+    strength = 0.35
+
+    with torch.inference_mode():
+        result = deblur_pipe(
+            prompt=prompt,
+            image=image,
+            strength=strength,
+            guidance_scale=4.0,
+            num_inference_steps=40,
+        )
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    result.images[0].save(tmp.name)
+
+    return tmp.name
+
 
 def run_describe(image):
-    image=Image.open(image)
+    image = Image.open(image).convert("RGB")
 
-    # Call an AI function to describe the content of the image, will be useful to re-prompt inpaint and outpaint to get better results.
+    inputs = caption_processor(image, return_tensors="pt").to(DEVICE)
+
+    with torch.inference_mode():
+        out = caption_model.generate(
+            **inputs,
+            max_new_tokens=50
+        )
+
+    description = caption_processor.decode(
+        out[0],
+        skip_special_tokens=True
+    )
 
     return description

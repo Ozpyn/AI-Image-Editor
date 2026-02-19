@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_file
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe
+import json
 
 app = Flask(__name__)
 
@@ -12,12 +13,15 @@ def inpaint():
     if "image" not in request.files or "mask" not in request.files:
         return jsonify({"error": "image and mask are required"}), 400
 
-    image = request.files["image"]
-    mask = request.files["mask"]
-
-    output_path = run_inpaint(image, mask)
-
-    return send_file(output_path, mimetype="image/png")
+    try:
+        output_path = run_inpaint(
+        request.files["image"],
+        request.files["mask"],
+        request.form.get("prompt")  # optional
+        )
+        return send_file(output_path, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/outpaint", methods=["POST"])
 def outpaint():
@@ -28,29 +32,40 @@ def outpaint():
     if not directions:
         return jsonify({"error": "directions required"}), 400
 
-    output_path = run_outpaint(
-        request.files["image"],
-        directions
-    )
+    try:
+        directions = json.loads(directions)
+        output_path = run_outpaint(
+            request.files["image"],
+            directions,
+            request.form.get("prompt")  # optional
+        )
+        return send_file(output_path, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    return send_file(output_path, mimetype="image/png")
 
 @app.route("/deblur", methods=["POST"])
 def deblur():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 
-    output_path = run_deblur(request.files["image"])
-
-    return send_file(output_path, mimetype="image/png")
+    try:
+        output_path = run_deblur(
+            request.files["image"],
+            request.form.get("prompt")  # optional
+        )
+        return send_file(output_path, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/describeme", methods=["POST"])
-def inpaint():
+def desc():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 
-    image = request.files["image"]
-
-    description = run_describe(image, mask)
+    description = run_describe(request.files["image"])
 
     return jsonify ({"description": description}), 200
+
+if __name__ == '__main__':
+	app.run(port=8000)

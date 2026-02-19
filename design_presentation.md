@@ -10,7 +10,7 @@ class: default
 ### Aaliyah Creech, Nickson Ibrahim, Gabriel Mingle, Gloria Uwimbabazi 
 
 ---
-# Project Overview
+# Project OverView
 - A web-based image editing application
 
 - Allows users to import, edit, and enhance images interactively
@@ -40,6 +40,7 @@ class: default
 
 - **Lucide-React** – Icon library for professional UI icons
 
+
 ---
 
 # Framework: Back-End
@@ -55,6 +56,18 @@ class: default
     - Salesforce/blip-image-captioning-base
     - runwayml/stable-diffusion-v1-5
 - PyTorch pipes the workload to the GPU(s)
+
+---
+
+# AI Functions
+
+- Deblur
+
+- Inpainting
+
+- OutPainting
+
+- Background Removal
 
 ---
 
@@ -88,6 +101,7 @@ class: default
 
 - Visual highlight shows the currently active tool
 
+
 ---
 
 # Canvas Area Design
@@ -112,12 +126,18 @@ class: default
 
 - Designed to update dynamically based on selected object
 
---- 
+---
+
+# Supported Editing Functions
+
+<!-- ai-enabled or otherwise -->
+
+---
 
 # Implementation Status 
-- We designed UI (Gloria and Aaliyah)
+- we designed UI
 
-- We implemented some of the tools in the Toolbox: (Gloria and Nickson)
+- We implemented some of the tools in the Toolbox:
   - Select Tool: Move, resize, and select objects
   - Erase Tool: Draws mask paths using Fabric’s brush system
   - Text Tool: Click to place editable text objects
@@ -138,6 +158,8 @@ class: default
   - Background removal
   - Image Adjustments
 
+- Implemented API to run AI functions
+  - Inpainting and Describe
 ---
 # Tool Enabling Design Pattern
 - User clicks a tool in the Toolbox

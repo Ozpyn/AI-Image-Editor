@@ -17,7 +17,14 @@ flask run
 # Testing Endpoints:
 
 ```
-curl -X POST http://127.0.0.1:5000/inpaint \
-        -F "image=@testimage.jpg" \
-        -F "mask=@testimage.jpg"
+curl -X POST http://localhost:8000/inpaint \
+        -F "image=@raw_image.jpg" \
+        -F "mask=@mask2.jpg" \
+        -F "prompt=A tiger riding a tricycle" \
+        --output output.png
 ```
+```
+curl -X POST http://localhost:8000/describe -F "image=@raw_image.jpg"
+```
+
+mask1.jpg should be used to test outpainting
