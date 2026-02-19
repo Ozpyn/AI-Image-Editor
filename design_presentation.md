@@ -109,6 +109,10 @@ class: default
 
 ---
 
+![bg fit](erase-flow.png)
+
+---
+
 # Supported Editing Functions
 
 - Select function
@@ -118,10 +122,6 @@ class: default
 - Crop function
 - Deblurring
 - Inpainting / Outpainting
-
----
-
-![bg fit](erase-flow.png)
 
 ---
 
