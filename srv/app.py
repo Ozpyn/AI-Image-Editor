@@ -39,6 +39,7 @@ def welcome():
     return "AI-Image Editor Flask API"
 
 @app.route("/api/inpaint", methods=["POST"])
+@app.route("/api/inpaint", methods=["POST"])
 def inpaint():
     if "image" not in request.files or "mask" not in request.files:
         return jsonify({"error": "image and mask are required"}), 400
@@ -88,6 +89,7 @@ def outpaint():
 
 
 @app.route("/api/deblur", methods=["POST"])
+@app.route("/api/deblur", methods=["POST"])
 def deblur():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
@@ -117,8 +119,8 @@ def deblur():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/describeme", methods=["POST"])
-def inpaintDescribe():
+@app.route("/api/describeme", methods=["POST"])
+def desc():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 
