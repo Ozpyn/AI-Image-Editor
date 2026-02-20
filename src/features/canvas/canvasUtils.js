@@ -35,7 +35,6 @@ function enableSelectMode(canvas) {
 }
 
 export function setToolMode(canvas, mode = "select", options = {}) {
-export function setToolMode(canvas, mode = "select", options = {}) {
   if (!canvas) return;
 
   resetCanvasState(canvas);
@@ -289,3 +288,4 @@ function enableBrushMode(canvas, options = {}) {
   });
 
   canvas.requestRenderAll();
+}
