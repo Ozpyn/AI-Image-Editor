@@ -8,9 +8,6 @@ const toolModes = {
   erase: enableEraseMode,
   text: enableTextMode,
   brush: enableBrushMode, 
-
-
-
   text: enableTextMode,
   brush: enableBrushMode, 
 };
