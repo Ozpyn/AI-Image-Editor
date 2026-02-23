@@ -1,14 +1,41 @@
+from flask import Flask, send_from_directory
+import os
+
+app = Flask(
+    __name__,
+    static_folder="../frontend/dist",
+    static_url_path="/"
+)
+
+@app.route("/api/hello")
+def hello():
+    return {"message": "Hello from Flask"}
+
 from flask import Flask, request, jsonify, send_file
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe
 import json
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    static_folder="../dist",
+    static_url_path="/"
+)
 
-@app.route("/")
+# Serve SPA
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, "index.html")
+
+
+@app.route("/api/hello")
 def welcome():
     return "AI-Image Editor Flask API"
 
-@app.route("/inpaint", methods=["POST"])
+@app.route("/api/inpaint", methods=["POST"])
 def inpaint():
     if "image" not in request.files or "mask" not in request.files:
         return jsonify({"error": "image and mask are required"}), 400
@@ -23,7 +50,7 @@ def inpaint():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/outpaint", methods=["POST"])
+@app.route("/api/outpaint", methods=["POST"])
 def outpaint():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
@@ -44,7 +71,7 @@ def outpaint():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/deblur", methods=["POST"])
+@app.route("/api/deblur", methods=["POST"])
 def deblur():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
@@ -58,7 +85,7 @@ def deblur():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route("/describeme", methods=["POST"])
+@app.route("/api/describeme", methods=["POST"])
 def desc():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400

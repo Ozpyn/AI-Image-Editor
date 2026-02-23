@@ -10,7 +10,7 @@ class: default
 ### Aaliyah Creech, Nickson Ibrahim, Gabriel Mingle, Gloria Uwimbabazi 
 
 ---
-# Project OverView
+# Project Overview
 - A web-based image editing application
 
 - Allows users to import, edit, and enhance images interactively
@@ -40,34 +40,6 @@ class: default
 
 - **Lucide-React** – Icon library for professional UI icons
 
-
----
-
-# Framework: Back-End
-
-![bg vertical width:90% right:30%](https://flask.palletsprojects.com/en/stable/_images/flask-name.svg)
-![bg width:90% right:30%](https://cdn.worldvectorlogo.com/logos/pytorch-2.svg)
-![bg width:90% right:30%](https://upload.wikimedia.org/wikipedia/commons/d/d6/Hf-logo-with-title.svg)
-
-- Built as a Flask REST API with workers
-- A worker can run the requested Compute
-- Using Models provided by HuggingFace
-    - runwayml/stable-diffusion-inpainting
-    - Salesforce/blip-image-captioning-base
-    - runwayml/stable-diffusion-v1-5
-- PyTorch pipes the workload to the GPU(s)
-
----
-
-# AI Functions
-
-- Deblur
-
-- Inpainting
-
-- OutPainting
-
-- Background Removal
 
 ---
 
@@ -128,39 +100,6 @@ class: default
 
 ---
 
-# Supported Editing Functions
-
-<!-- ai-enabled or otherwise -->
-
----
-
-# Implementation Status 
-- we designed UI
-
-- We implemented some of the tools in the Toolbox:
-  - Select Tool: Move, resize, and select objects
-  - Erase Tool: Draws mask paths using Fabric’s brush system
-  - Text Tool: Click to place editable text objects
-  - Brush Tool: Free-drawing with adjustable color and size
-
-- Implemented API to run AI functions (Gabe)
-  - Inpainting and Describe
-
----
-
-# Editing Functions to be Supported by System
-
-<!-- ai-enabled or otherwise -->
-- Planning on implementing:
-  - Crop function
-  - Deblurring
-  - Inpainting/Outpainting
-  - Background removal
-  - Image Adjustments
-
-- Implemented API to run AI functions
-  - Inpainting and Describe
----
 # Tool Enabling Design Pattern
 - User clicks a tool in the Toolbox
 - activeTool state is updated in App.jsx
@@ -169,12 +108,73 @@ class: default
 - canvasUtils.js activates the correct tool logic
 
 ---
-# Implementation Plan
-- Integrate the AI API endpoints as functions in the frontend
-- Backend optimization to prevent errors
-- Finalize UI design to ensure all AI/non-AI tools are working
-- Testing/Validation
+
+![bg fit](erase-flow.png)
 
 ---
 
-<!-- Ideally the remaining plan is itemized per team member -->
+# Supported Editing Functions
+
+- Select function
+- Text function
+- Erase function
+- Brush function
+- Crop function
+- Deblurring
+- Inpainting / Outpainting
+
+---
+
+# Framework: Back-End
+
+![bg vertical width:90% right:30%](https://flask.palletsprojects.com/en/stable/_images/flask-name.svg)
+![bg width:90% right:30%](https://cdn.worldvectorlogo.com/logos/pytorch-2.svg)
+![bg width:90% right:30%](https://upload.wikimedia.org/wikipedia/commons/d/d6/Hf-logo-with-title.svg)
+
+- Built as a Flask REST API with workers
+- A worker can run the requested Compute
+- Using Models provided by HuggingFace
+    - runwayml/stable-diffusion-inpainting
+    - Salesforce/blip-image-captioning-base
+    - runwayml/stable-diffusion-v1-5
+- PyTorch pipes the workload to the GPU(s)
+
+---
+
+# AI Functions
+
+- Deblur
+
+- Inpainting
+
+- OutPainting
+
+- Background Removal
+
+---
+
+# Implementation Status 
+- we designed UI **(Nickson, Gloria, and Aaliyah)**
+
+- We implemented some of the tools in the Toolbox:
+  - Select Tool: Move, resize, and select objects **(Nickson)**
+  - Erase Tool: Draws mask paths using Fabric’s brush system **(Nickson)**
+  - Text Tool: Click to place editable text objects **(Gloria)**
+  - Brush Tool: Free-drawing with adjustable color and size **(Gloria)**
+
+- Implemented API to run AI functions **(Gabriel)**
+  - Inpainting and Describe
+
+---
+
+# Implementation Plan
+- Integrate the AI API endpoints as functions in the frontend **(Aaliyah and Gabriel)**
+- Backend optimization to prevent errors **(Gabriel)**
+- Finalize UI design to ensure all AI/non-AI tools are working **(Nickson and Gloria)**
+- Testing/Validation **(All Team Members)**
+- Documentation **(Aaliyah)**
+
+---
+<!-- _class: lead -->
+
+# **Q & A**
