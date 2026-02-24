@@ -30,7 +30,7 @@ if [[ "$OS" == *"MINGW"* || "$OS" == *"MSYS"* || "$OS" == *"CYGWIN"* || "$OS" ==
         pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
     else
         echo "Windows CPU-only detected — installing CPU build"
-        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+        pip install torch torchvision
     fi
 
 # -----------------------------
