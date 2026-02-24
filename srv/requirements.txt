@@ -1,4 +1,7 @@
-flask
+fastapi
+uvicorn
+python-multipart
+
 diffusers
 transformers
 accelerate

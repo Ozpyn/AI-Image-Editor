@@ -1,86 +1,94 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from typing import Optional
+import json
+import os
+
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe
-import json, os
 
-app = Flask(
-    __name__,
-    static_folder="../frontend/dist",
-    static_url_path="/"
-)
+app = FastAPI()
 
-# Serve SPA
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
-def serve(path):
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-    else:
-        return send_from_directory(app.static_folder, "index.html")
+@app.get("/api/hello")
+async def welcome():
+    return {"message": "AI-Image Editor FastAPI"}
 
-
-@app.route("/api/hello")
-def welcome():
-    return "AI-Image Editor Flask API"
-
-@app.route("/api/inpaint", methods=["POST"])
-def inpaint():
-    if "image" not in request.files or "mask" not in request.files:
-        return jsonify({"error": "image and mask are required"}), 400
-
+@app.post("/api/inpaint")
+async def inpaint(
+    image: UploadFile = File(...),
+    mask: UploadFile = File(...),
+    prompt: Optional[str] = Form(None)
+):
     try:
         output_path = run_inpaint(
-        request.files["image"],
-        request.files["mask"],
-        request.form.get("prompt")  # optional
+            image.file,
+            mask.file,
+            prompt
         )
-        return send_file(output_path, mimetype="image/png")
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return FileResponse(output_path, media_type="image/png")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.route("/api/outpaint", methods=["POST"])
-def outpaint():
-    if "image" not in request.files:
-        return jsonify({"error": "image is required"}), 400
-
-    directions = request.form.get("directions")
-    if not directions:
-        return jsonify({"error": "directions required"}), 400
-
+@app.post("/api/outpaint")
+async def outpaint(
+    image: UploadFile = File(...),
+    directions: str = Form(...),
+    prompt: Optional[str] = Form(None)
+):
     try:
-        directions = json.loads(directions)
+        directions_data = json.loads(directions)
+
         output_path = run_outpaint(
-            request.files["image"],
-            directions,
-            request.form.get("prompt")  # optional
+            image.file,
+            directions_data,
+            prompt
         )
-        return send_file(output_path, mimetype="image/png")
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
+        return FileResponse(output_path, media_type="image/png")
 
-@app.route("/api/deblur", methods=["POST"])
-def deblur():
-    if "image" not in request.files:
-        return jsonify({"error": "image is required"}), 400
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid directions JSON")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+@app.post("/api/deblur")
+async def deblur(
+    image: UploadFile = File(...),
+    prompt: Optional[str] = Form(None)
+):
     try:
         output_path = run_deblur(
-            request.files["image"],
-            request.form.get("prompt")  # optional
+            image.file,
+            prompt
         )
-        return send_file(output_path, mimetype="image/png")
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-@app.route("/api/describeme", methods=["POST"])
-def desc():
-    if "image" not in request.files:
-        return jsonify({"error": "image is required"}), 400
+        return FileResponse(output_path, media_type="image/png")
 
-    description = run_describe(request.files["image"])
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-    return jsonify ({"description": description}), 200
+@app.post("/api/describeme")
+async def describeme(
+    image: UploadFile = File(...)
+):
+    try:
+        description = run_describe(image.file)
+        return JSONResponse(content={"description": description})
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-if __name__ == '__main__':
-	app.run(host="0.0.0.0", port=8000)
+# Serve SPA
+app.mount(
+    "/",
+    StaticFiles(directory="../frontend/dist", html=True),
+    name="static"
+)
 
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "app:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )
