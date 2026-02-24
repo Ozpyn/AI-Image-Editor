@@ -5,7 +5,7 @@ from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipe
 from transformers import BlipProcessor, BlipForConditionalGeneration
 import tempfile
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda"
 
 inpainting_pipe = StableDiffusionInpaintPipeline.from_pretrained(
     "runwayml/stable-diffusion-inpainting",
