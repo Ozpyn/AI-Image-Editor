@@ -5,9 +5,9 @@ from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipe
 from transformers import BlipProcessor, BlipForConditionalGeneration
 import tempfile
 
-DEVICE = "cuda" if torch.cuda.is_available() else \
-         "mps" if torch.backends.mps.is_available() else \ 
-         "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else 
+        "mps" if torch.backends.mps.is_available() else
+        "cpu"
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
 
 inpainting_pipe = StableDiffusionInpaintPipeline.from_pretrained(
