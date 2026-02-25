@@ -5,23 +5,26 @@ from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipe
 from transformers import BlipProcessor, BlipForConditionalGeneration
 import tempfile
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
 
 inpainting_pipe = StableDiffusionInpaintPipeline.from_pretrained(
     "runwayml/stable-diffusion-inpainting",
-    torch_dtype=torch.float16
+    torch_dtype=DTYPE
 ).to(DEVICE)
 
 deblur_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
     "runwayml/stable-diffusion-v1-5",
-    torch_dtype=torch.float16
+    torch_dtype=DTYPE
 ).to(DEVICE)
 
 caption_processor = BlipProcessor.from_pretrained(
     "Salesforce/blip-image-captioning-base"
 )
+
 caption_model = BlipForConditionalGeneration.from_pretrained(
-    "Salesforce/blip-image-captioning-base"
+    "Salesforce/blip-image-captioning-base",
+    torch_dtype=DTYPE
 ).to(DEVICE)
 
 # inpainting_pipe.enable_xformers_memory_efficient_attention()
