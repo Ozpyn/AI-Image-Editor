@@ -6,34 +6,48 @@ import { useEffect, useRef } from "react";
 import { useCanvas } from "../../features/canvas/useCanvas";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
-export default function CanvasArea({ activeTool, brushColor, brushSize, adjustments }) {
+export default function CanvasArea({
+  activeTool,
+  brushColor,
+  brushSize,
+  onCanvasActionsReady, // ✅ NEW
+}) {
   const fileRef = useRef(null);
   const stageRef = useRef(null);
 
-  //  forward adjustments into useCanvas
+  // forward the activeTool prop to useCanvas hook
   const { canvasElRef, ready, actions } = useCanvas({
     activeTool,
     brushColor,
     brushSize,
-    adjustments,
   });
+
+  // ✅ NEW: expose actions upward (for AI features / panels / other UI)
+  useEffect(() => {
+    if (!ready) return;
+    if (typeof onCanvasActionsReady === "function") {
+      onCanvasActionsReady(actions);
+    }
+  }, [ready, actions, onCanvasActionsReady]);
 
   useEffect(() => {
     if (!ready || !stageRef.current) return;
     const stageArea = stageRef.current;
 
-    const resize = () => {
+    const resizeUsingResizeObserver = () => {
       const rect = stageArea.getBoundingClientRect();
       if (rect.width > 0 && rect.height > 0) {
         actions.setSize(rect.width, rect.height);
       }
     };
+    resizeUsingResizeObserver(); // to initialize size the canvas size using setSize in our useCanvas
 
-    resize(); // initial
-    const ro = new ResizeObserver(resize);
-    ro.observe(stageArea);
+    const theResizeObserver = new ResizeObserver(resizeUsingResizeObserver);
+    theResizeObserver.observe(stageArea);
 
-    return () => ro.disconnect();
+    return () => {
+      theResizeObserver.disconnect();
+    };
   }, [ready, actions]);
 
   const onPickFile = () => fileRef.current?.click();
@@ -92,7 +106,7 @@ export default function CanvasArea({ activeTool, brushColor, brushSize, adjustme
               ref={stageRef}
               className="relative h-full w-full overflow-hidden rounded-xl border border-white/10 bg-black/20"
             >
-              <canvas ref={canvasElRef} className="block h-full w-full" />
+              <canvas ref={canvasElRef} className="block" />
 
               {!ready && (
                 <div className="absolute inset-0 grid place-items-center">
@@ -126,8 +140,7 @@ export default function CanvasArea({ activeTool, brushColor, brushSize, adjustme
 
                 <button
                   onClick={() => actions.reset()}
-                  className="rounded-lg bg-white/5 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
-                  type="button"
+                  className="rounded-lg bg-rose-800 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
                 >
                   Clear
                 </button>
