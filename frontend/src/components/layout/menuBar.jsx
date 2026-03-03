@@ -12,7 +12,7 @@ export default function MenuBar({activeTool, onToolSelect, onAiTest}) {
             <span className="text-sm font-semibold tracking-wide">Big AI Photo Editor</span>
           </div>
 
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden  items-center gap-1 md:flex">
             <MenuItem label="File" />
             <MenuItem label="Edit" />
             <MenuItem label="Image" />
@@ -39,9 +39,6 @@ export default function MenuBar({activeTool, onToolSelect, onAiTest}) {
             Export
           </button>
 
-          <button className="ml-1 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 hover:bg-white/10">
-            <User className="h-4 w-4" />
-          </button>
         </div>
       </div>
     </header>

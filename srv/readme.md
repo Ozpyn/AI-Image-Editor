@@ -31,5 +31,4 @@ curl -X POST http://localhost:8000/inpaint \
 curl -X POST http://localhost:8000/describeme -F "image=@raw_image.jpg"
 ```
 
-
 mask1.jpg should be used to test outpainting

@@ -6,7 +6,7 @@
   --color-bg: #f1f5f9;        /* soft grey background */
   --color-panel: #ffffff;     /* white panels */
   --color-accent: #0ea5e9;    /* soft indigo button contrast */
-
+  --color-menuItem: #0e450e;
   --radius-lg: 12px;
   --radius-md: 8px;
 }
@@ -64,3 +64,4 @@ button:hover {
   background: #cbd5f5;
   border-radius: 10px;
 }
+.menuItem{background: #4f46e5;}

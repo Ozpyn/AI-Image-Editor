@@ -58,24 +58,7 @@ class: default
 
 
 ---
-![bg fit](image-3.png)
-
----
-## Main UI Layout
-
-- **Top Menu Bar** – File, Edit, Image, AI Tools
-
-- **Left Toolbox** – Editing tools (Select, Erase, Text, Brush, etc.)
-
-- **Center Canvas Area** – Main editing workspace
-
-- **Right Properties Panel** – Layers and adjustment controls
-
-- **Footer** – Status and future timeline controls
-
-
----
-![bg fit](image-3.png)
+![bg fit](assets/image-3.png)
 
 ---
 
@@ -115,9 +98,6 @@ class: default
 
 - Designed to update dynamically based on selected object
 
---- 
-
-
 ---
 
 # Tool Enabling Design Pattern
@@ -129,7 +109,7 @@ class: default
 
 ---
 
-![bg fit](erase-flow.png)
+![bg fit](assets/erase-flow.png)
 
 ---
 
