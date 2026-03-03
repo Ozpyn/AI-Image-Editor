@@ -1,73 +1,204 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-// For managing loading, errors, etc.
-export function useAiFeatures() {
+/**
+ * AI hook (client-side)
+ * Requires canvas "actions" from useCanvas:
+ *  - exportAsPNGBlob(multiplier)
+ *  - exportAsMaskBlob(multiplier)
+ *  - applyBlobResult(blob, { mode })
+ */
+export function useAiFeatures({
+  apiBase = "http://aiedit.ozpyn.dev/api/",
+  canvasActions, // { exportAsPNGBlob, exportAsMaskBlob, applyBlobResult }
+} = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // AI Action: Inpainting (remove objects)
-  const inpaint = async (prompt, image, mask, options = {}) => {
-    setLoading(true);
-    setError(null);
+  // Keep track of last preview URL to revoke it (avoid memory leaks)
+  const lastUrlRef = useRef(null);
+  useEffect(() => {
+    return () => {
+      if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
+    };
+  }, []);
 
-    try {
-      const response = await fetch("http://VIPER_IP:8000/inpaint", {
-        method: "POST",
-        body: createFormData(prompt, image, mask, options),
-      });
+  const createFormData = useCallback(
+    (
+      prompt,
+      imageBlob,
+      maskBlob,
+      { guidance_scale = 6.5, steps = 30, seed = -1 } = {}
+    ) => {
+      const formData = new FormData();
+      formData.append("prompt", prompt);
+      formData.append("image", imageBlob, "image.png");
+      if (maskBlob) formData.append("mask", maskBlob, "mask.png");
+      formData.append("guidance_scale", String(guidance_scale));
+      formData.append("steps", String(steps));
+      formData.append("seed", String(seed));
+      return formData;
+    },
+    []
+  );
 
-      if (!response.ok) {
-        throw new Error("Inpainting failed.");
+  const fetchBlob = useCallback(async (endpoint, formData) => {
+    const res = await fetch(`${apiBase}${endpoint}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      // Try to surface backend message (FastAPI often returns JSON/text)
+      let detail = "";
+      try {
+        detail = await res.text();
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail || `Request failed: ${res.status}`);
+    }
+
+    return await res.blob();
+  }, [apiBase]);
+
+  /**
+   * Inpaint using current Fabric canvas state:
+   * - exports image blob and mask blob
+   * - calls /inpaint
+   * - optionally applies to canvas
+   */
+async function getSize(blob) {
+  const bmp = await createImageBitmap(blob);
+  return { width: bmp.width, height: bmp.height };
+}
+
+  const inpaintFromCanvas = useCallback(
+    async (
+      {
+        prompt,
+        guidance_scale,
+        steps,
+        seed,
+        exportMultiplier = 1,
+        apply = true,
+        applyMode = "replace", // "replace" | "newLayer"
+      } = {}
+    ) => { console.log("🔥 At least it is calling inpaint useAiFeatures");
+      if (!canvasActions?.exportAsPNGBlob) {
+        throw new Error("useAiFeatures: canvasActions.exportAsPNGBlob is missing");
+      }
+      if (!canvasActions?.exportAsMaskBlob) {
+        throw new Error("useAiFeatures: canvasActions.exportAsMaskBlob is missing");
       }
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      return url; // Returns the image URL after inpainting
-    } catch (err) {
-      setError(err.message);
-      console.error("Inpainting error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      setLoading(true);
+      setError(null);
 
-  // AI Action: Outpainting (expand canvas)
-  const outpaint = async (prompt, image, options = {}) => {
-    setLoading(true);
-    setError(null);
+      try {
+        
+        const imageBlob = canvasActions.exportAsPNGBlob(exportMultiplier);
+        const maskBlob = canvasActions.exportAsMaskBlob(exportMultiplier);
 
-    try {
-      const response = await fetch("http://VIPER_IP:8000/outpaint", {
-        method: "POST",
-        body: createFormData(prompt, image, null, options),
-      });
+        if (!imageBlob) throw new Error("Failed to export canvas image");
+        if (!maskBlob) throw new Error("Failed to export canvas mask");
 
-      if (!response.ok) {
-        throw new Error("Outpainting failed.");
+        //lets print the size to avoid mismatch with SDXL
+        console.log("🧪 imageBlob", await getSize(imageBlob));
+        console.log("🧪 maskBlob ", await getSize(maskBlob));
+
+        const fd = createFormData(prompt, imageBlob, maskBlob, {
+          guidance_scale,
+          steps,
+          seed,
+        });
+
+        const outBlob = await fetchBlob("/inpaint", fd);
+
+        // preview url
+        if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
+        const url = URL.createObjectURL(outBlob);
+        lastUrlRef.current = url;
+
+        if (apply && canvasActions?.applyBlobResult) {
+          await canvasActions.applyBlobResult(outBlob, { mode: applyMode });
+        }
+
+        return { blob: outBlob, url };
+      } catch (err) {
+        const msg = err?.message || "Inpainting failed";
+        setError(msg);
+        console.error("Inpainting error:", err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [canvasActions, createFormData, fetchBlob]
+  );
+
+  /**
+   * Outpaint using current Fabric canvas state:
+   * - exports image blob (mask not required)
+   * - calls /outpaint
+   * - optionally applies to canvas
+   */
+  const outpaintFromCanvas = useCallback(
+    async (
+      {
+        prompt,
+        guidance_scale,
+        steps,
+        seed,
+        exportMultiplier = 2,
+        apply = true,
+        applyMode = "replace",
+      } = {}
+    ) => {
+      if (!canvasActions?.exportAsPNGBlob) {
+        throw new Error("useAiFeatures: canvasActions.exportAsPNGBlob is missing");
       }
 
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      return url; // Returns the outpainted image URL
-    } catch (err) {
-      setError(err.message);
-      console.error("Outpainting error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      setLoading(true);
+      setError(null);
 
-  // Helper: creates formData for both inpainting and outpainting
-  const createFormData = (prompt, image, mask, { guidance_scale = 6.5, steps = 30, seed = -1 }) => {
-    const formData = new FormData();
-    formData.append("prompt", prompt);
-    formData.append("image", image);
-    if (mask) formData.append("mask", mask);
-    formData.append("guidance_scale", guidance_scale);
-    formData.append("steps", steps);
-    formData.append("seed", seed);
-    return formData;
-  };
+      try {
+        const imageBlob = canvasActions.exportAsPNGBlob(exportMultiplier);
+        if (!imageBlob) throw new Error("Failed to export canvas image");
 
-  return { inpaint, outpaint, loading, error };
+        const fd = createFormData(prompt, imageBlob, null, {
+          guidance_scale,
+          steps,
+          seed,
+        });
+
+        const outBlob = await fetchBlob("/outpaint", fd);
+
+        if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
+        const url = URL.createObjectURL(outBlob);
+        lastUrlRef.current = url;
+
+        if (apply && canvasActions?.applyBlobResult) {
+          await canvasActions.applyBlobResult(outBlob, { mode: applyMode });
+        }
+
+        return { blob: outBlob, url };
+      } catch (err) {
+        const msg = err?.message || "Outpainting failed";
+        setError(msg);
+        console.error("Outpainting error:", err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [canvasActions, createFormData, fetchBlob]
+  );
+
+  return {
+    inpaintFromCanvas,
+    outpaintFromCanvas,
+    loading,
+    error,
+  };
+  
 }

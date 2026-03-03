@@ -1,27 +1,55 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import MenuBar from "./components/layout/menuBar";
 import ToolBox from "./components/layout/toolBox";
 import CanvasArea from "./components/layout/canvasArea";
 import PropertiesPanel from "./components/layout/propertiesPanel";
 import Footer from "./components/layout/footer";
+import { useAiFeatures } from "./features/aiFeatures/useAiFeatures";
 
 export default function App() {
   const [toolboxCollapsed, setToolboxCollapsed] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(true);
-
   const [activeTool, setActiveTool] = useState("select");
 
-  // Brush options 
   const [brushColor, setBrushColor] = useState("#ff3b30");
   const [brushSize, setBrushSize] = useState(12);
 
-  const handleToolSelect = (tool) => {
-    setActiveTool(tool);
+  const [canvasActions, setCanvasActions] = useState(null);
+
+  const handleToolSelect = (tool) => setActiveTool(tool);
+
+  // Create AI hook; it can run only after canvasActions are available
+  const ai = useAiFeatures({
+    apiBase: "http://127.0.0.1:8000", // replace with http://VIPER_IP:8000 when ready
+    canvasActions,
+  });
+
+  const onAiTest = async () => {
+    // optional: switch tool label/state (not required for the test)
+    setActiveTool("ai.inpaint");
+
+    if (!canvasActions) {
+      alert("Canvas not ready yet.");
+      return;
+    }
+
+    // IMPORTANT: this assumes you drew a mask (objects tagged role:'mask')
+    // If you haven't built mask drawing yet, this call will still run but your mask may be empty/black.
+    await ai.inpaintFromCanvas({
+      prompt: "remove the object, realistic background",
+      apply: true,
+      applyMode: "replace",
+      exportMultiplier: 2,
+    });
   };
 
   return (
     <div className="flex h-screen w-screen flex-col">
-      <MenuBar />
+      <MenuBar
+        activeTool={activeTool}
+        onToolSelect={handleToolSelect}
+        onAiTest={onAiTest} //just for testing using menubar
+      />
 
       <div className="flex min-h-0 flex-1">
         <ToolBox
@@ -29,7 +57,6 @@ export default function App() {
           onToggle={() => setToolboxCollapsed((v) => !v)}
           activeTool={activeTool}
           onToolSelect={handleToolSelect}
-          // pass brush controls to toolbox 
           brushColor={brushColor}
           brushSize={brushSize}
           onBrushColorChange={setBrushColor}
@@ -38,9 +65,9 @@ export default function App() {
 
         <CanvasArea
           activeTool={activeTool}
-          // pass brush options to canvas 
           brushColor={brushColor}
           brushSize={brushSize}
+          onCanvasActionsReady={setCanvasActions} // ✅ gives App access
         />
 
         <div className="hidden lg:block">

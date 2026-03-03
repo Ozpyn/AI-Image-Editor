@@ -7,6 +7,9 @@ import {
   clearCanvas,
   setToolMode,
   exportPNG,
+  exportPNGBlob,
+  exportMaskBlob,
+  applyResultBlob,
   fitObjectToCanvas,
   setCanvasSize,
 } from "./canvasUtils";
@@ -99,16 +102,56 @@ export function useCanvas({ activeTool, brushColor, brushSize } = {}) {
     clearCanvas(c);
   }, []);
 
-  const exportAsPNG = useCallback((multiplier = 2) => {
+  const exportAsPNG = useCallback((multiplier = 1) => {
     const c = fabricRef.current;
     if (!c) return null;
     return exportPNG(c, multiplier);
   }, []);
 
+const exportAsPNGBlob = useCallback((multiplier = 1) => {
+  const c = fabricRef.current;
+  if (!c) return null;
+  return exportPNGBlob(c, multiplier);
+}, []);
+
+const exportAsMaskBlob = useCallback((multiplier = 1) => {
+  const c = fabricRef.current;
+  if (!c) return null;
+  return exportMaskBlob(c, multiplier);
+}, []);
+
+const applyBlobResult = useCallback(async (blob, opts) => {
+  const c = fabricRef.current;
+  if (!c) return;
+  await applyResultBlob(c, blob, opts);
+}, []);
+  
+const actions = useMemo(() => {
   return {
-    canvasElRef,
-    ready,
-    api,
-    actions: { setSize, importFile, importFromURL, reset, exportAsPNG },
+    setSize,
+    importFile,
+    importFromURL,
+    reset,
+    exportAsPNG,
+    exportAsPNGBlob,
+    exportAsMaskBlob,
+    applyBlobResult,
   };
+}, [
+  setSize,
+  importFile,
+  importFromURL,
+  reset,
+  exportAsPNG,
+  exportAsPNGBlob,
+  exportAsMaskBlob,
+  applyBlobResult,
+]);
+
+return {
+  canvasElRef,
+  ready,
+  api,
+  actions,
+};
 }

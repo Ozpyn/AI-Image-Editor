@@ -1,7 +1,7 @@
 {/*Lets import our icons from lucide*/}
 import { FileImage, Download, Sparkles, Undo2, Redo2, User } from "lucide-react";
 
-export default function MenuBar() {
+export default function MenuBar({activeTool, onToolSelect, onAiTest}) {
   return (
     <header className="h-14 w-full border-b border-white/10 bg-panel/70 backdrop-blur supports-backdrop-filter:bg-panel/50">
       <div className="mx-auto flex h-full max-w-400 items-center justify-between px-3 md:px-4">
@@ -16,7 +16,13 @@ export default function MenuBar() {
             <MenuItem label="File" />
             <MenuItem label="Edit" />
             <MenuItem label="Image" />
-            <MenuItem label="AI Tools" badge="Beta" />
+            <MenuItem label="AI Tools" badge="Beta" 
+              active = {activeTool ?.startsWith("ai.")}
+              //This is the proper way we will later implement by seting toolmode & using propertiesPanel
+              //but for a taste, let call Ai directly on this menu
+               //onClick={()=>onToolSelect("ai.inpaint")} 
+               onClick={onAiTest}
+               />
           </nav>
         </div>
 
@@ -42,9 +48,14 @@ export default function MenuBar() {
   );
 }
 
-function MenuItem({ label, badge }) {
+function MenuItem({ label, badge, onClick, active }) { //A menu item gives u onClick
   return (
-    <button className="relative rounded-lg px-3 py-2 text-sm text-gray-200 hover:bg-white/5">
+    <button
+    type="button"
+      onClick={onClick}
+      className={["relative rounded-lg px-3 py-2 text-sm text-gray-200 hover:bg-white/5",
+        active ? "bg-accent text-white" : "text-gray-200"].join(" ")}
+      >
       {label}
       {badge ? (
         <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300">

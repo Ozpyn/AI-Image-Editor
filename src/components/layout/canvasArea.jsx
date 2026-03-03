@@ -5,22 +5,39 @@ import { useEffect, useRef } from "react";
 import { useCanvas } from "../../features/canvas/useCanvas";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
-export default function CanvasArea({ activeTool, brushColor, brushSize }) {
+export default function CanvasArea({
+  activeTool,
+  brushColor,
+  brushSize,
+  onCanvasActionsReady, // ✅ NEW
+}) {
   const fileRef = useRef(null);
   const stageRef = useRef(null);
-  //forward the activeTool prop to useCanvas hook
-  const { canvasElRef, ready, actions } = useCanvas({ activeTool, brushColor, brushSize });
 
+  // forward the activeTool prop to useCanvas hook
+  const { canvasElRef, ready, actions } = useCanvas({
+    activeTool,
+    brushColor,
+    brushSize,
+  });
+
+  // ✅ NEW: expose actions upward (for AI features / panels / other UI)
+  useEffect(() => {
+    if (!ready) return;
+    if (typeof onCanvasActionsReady === "function") {
+      onCanvasActionsReady(actions);
+    }
+  }, [ready, actions, onCanvasActionsReady]);
 
   useEffect(() => {
     if (!ready || !stageRef.current) return;
     const stageArea = stageRef.current;
 
-    const resizeUsingResizeObserver = () =>{
+    const resizeUsingResizeObserver = () => {
       const rect = stageArea.getBoundingClientRect();
       actions.setSize(rect.width, rect.height);
     };
-    resizeUsingResizeObserver();//to initialize size on mount
+    resizeUsingResizeObserver(); // to initialize size the canvas size using setSize in our useCanvas
 
     const theResizeObserver = new ResizeObserver(resizeUsingResizeObserver);
     theResizeObserver.observe(stageArea);
@@ -28,7 +45,6 @@ export default function CanvasArea({ activeTool, brushColor, brushSize }) {
     return () => {
       theResizeObserver.disconnect();
     };
-
   }, [ready, actions]);
 
   const onPickFile = () => fileRef.current?.click();
@@ -81,9 +97,12 @@ export default function CanvasArea({ activeTool, brushColor, brushSize }) {
             }}
           />
 
-          {/* Fabric canvas   */}
+          {/* Fabric canvas */}
           <div className="relative z-10 flex h-full w-full items-center justify-center p-3">
-            <div ref={stageRef} className="relative h-full w-full overflow-hidden rounded-xl border border-white/10 bg-black/20">
+            <div
+              ref={stageRef}
+              className="relative h-full w-full overflow-hidden rounded-xl border border-white/10 bg-black/20"
+            >
               <canvas ref={canvasElRef} className="block" />
 
               {/* Empty-state overlay */}
@@ -118,7 +137,7 @@ export default function CanvasArea({ activeTool, brushColor, brushSize }) {
 
                 <button
                   onClick={() => actions.reset()}
-                  className="rounded-lg  bg-rose-800 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
+                  className="rounded-lg bg-rose-800 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
                 >
                   Clear
                 </button>
@@ -134,7 +153,7 @@ export default function CanvasArea({ activeTool, brushColor, brushSize }) {
 function IconBtn({ icon, label }) {
   return (
     <button
-      className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-sky-600 hover:bg-indigo-50 hover:text-indigo-600 transition"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-sky-600 transition hover:bg-indigo-50 hover:text-indigo-600"
       aria-label={label}
       title={label}
       type="button"
