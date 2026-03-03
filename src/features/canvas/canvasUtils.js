@@ -34,6 +34,9 @@ import { fabricImageFromURL } from "./loadImage";
    Core helpers
 ========================================================= */
 
+//We need the user to draw around where they want the inpainting to happen
+//so we can create a mask by leaving that place white and other places black 
+
 export function setCanvasSize(canvas, w, h) {
   if (!canvas) return;
   canvas.setDimensions({
