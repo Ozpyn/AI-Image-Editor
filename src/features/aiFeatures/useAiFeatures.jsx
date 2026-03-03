@@ -8,7 +8,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *  - applyBlobResult(blob, { mode })
  */
 export function useAiFeatures({
-  apiBase = "http://aiedit.ozpyn.dev/api/",
+  
+  //apiBase = "http://aiedit.ozpyn.dev/api/",
+
+  apiBase = "http://127.0.0.1:8000/inpaint",
   canvasActions, // { exportAsPNGBlob, exportAsMaskBlob, applyBlobResult }
 } = {}) {
   const [loading, setLoading] = useState(false);
