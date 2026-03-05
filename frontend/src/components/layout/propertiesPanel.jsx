@@ -4,7 +4,7 @@ export default function PropertiesPanel({
   open,
   onToggle,
 
-  // ✅ new props (added from App.jsx)
+  // new props (added from App.jsx)
   activeTool,
   brushColor,
   setBrushColor,

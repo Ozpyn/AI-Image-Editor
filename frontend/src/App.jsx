@@ -33,13 +33,10 @@ export default function App() {
       return;
     }
 
-    // IMPORTANT: this assumes you drew a mask (objects tagged role:'mask')
-    // If you haven't built mask drawing yet, this call will still run but your mask may be empty/black.
     await ai.inpaintFromCanvas({
       prompt: "remove the object, realistic background",
       apply: true,
       applyMode: "replace",
-      exportMultiplier: 2,
     });
   };
 
@@ -67,7 +64,7 @@ export default function App() {
           activeTool={activeTool}
           brushColor={brushColor}
           brushSize={brushSize}
-          onCanvasActionsReady={setCanvasActions} // ✅ gives App access
+          onCanvasActionsReady={setCanvasActions}
         />
 
         <div className="hidden lg:block">

@@ -9,7 +9,7 @@ export default function CanvasArea({
   activeTool,
   brushColor,
   brushSize,
-  onCanvasActionsReady, // ✅ NEW
+  onCanvasActionsReady,
 }) {
   const fileRef = useRef(null);
   const stageRef = useRef(null);
@@ -21,7 +21,7 @@ export default function CanvasArea({
     brushSize,
   });
 
-  // ✅ NEW: expose actions upward (for AI features / panels / other UI)
+  // NEW: expose actions upward (for AI features / panels / other UI)
   useEffect(() => {
     if (!ready) return;
     if (typeof onCanvasActionsReady === "function") {
@@ -31,20 +31,18 @@ export default function CanvasArea({
 
   useEffect(() => {
     if (!ready || !stageRef.current) return;
+    
     const stageArea = stageRef.current;
-
-    const resizeUsingResizeObserver = () => {
+    const updateSize = () => {
       const rect = stageArea.getBoundingClientRect();
       actions.setSize(rect.width, rect.height);
     };
-    resizeUsingResizeObserver(); // to initialize size the canvas size using setSize in our useCanvas
-
-    const theResizeObserver = new ResizeObserver(resizeUsingResizeObserver);
-    theResizeObserver.observe(stageArea);
-
-    return () => {
-      theResizeObserver.disconnect();
-    };
+    
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(stageArea);
+    
+    return () => observer.disconnect();
   }, [ready, actions]);
 
   const onPickFile = () => fileRef.current?.click();
@@ -110,7 +108,7 @@ export default function CanvasArea({
                 <div className="absolute inset-0 grid place-items-center">
                   <div className="text-center">
                     <div className="text-sm font-semibold text-gray-200">
-                      Initializing canvas…
+                      Initializing canvas...
                     </div>
                     <div className="mt-1 text-xs text-gray-400">
                       Fabric is mounting

@@ -5,6 +5,7 @@ import { Canvas } from "fabric";
 import { fabricImageFromURL, loadImageFromFile } from "./loadImage";
 import {
   clearCanvas,
+  clearMaskObjects,
   setToolMode,
   exportPNG,
   exportPNGBlob,
@@ -12,6 +13,7 @@ import {
   applyResultBlob,
   fitObjectToCanvas,
   setCanvasSize,
+  getOriginalSizeMultiplier,
 } from "./canvasUtils";
 
 export function useCanvas({ activeTool, brushColor, brushSize } = {}) {
@@ -49,6 +51,14 @@ export function useCanvas({ activeTool, brushColor, brushSize } = {}) {
       setToolMode(canvas, "brush", {
         color: brushColor ?? "#ff3b30",
         size: brushSize ?? 12,
+      });
+    } else if (activeTool === "mask") {
+      setToolMode(canvas, "mask", {
+        size: brushSize ?? 40, // Use brush size for mask tool
+      });
+    } else if (activeTool === "erase") {
+      setToolMode(canvas, "erase", {
+        size: brushSize ?? 40, // Use brush size for erase tool
       });
     } else {
       setToolMode(canvas, activeTool || "select");
@@ -102,28 +112,40 @@ export function useCanvas({ activeTool, brushColor, brushSize } = {}) {
     clearCanvas(c);
   }, []);
 
+  const clearMask = useCallback(() => {
+    const c = fabricRef.current;
+    if (!c) return;
+    clearMaskObjects(c);
+  }, []);
+
   const exportAsPNG = useCallback((multiplier = 1) => {
     const c = fabricRef.current;
     if (!c) return null;
     return exportPNG(c, multiplier);
   }, []);
 
-const exportAsPNGBlob = useCallback((multiplier = 1) => {
+const exportAsPNGBlob = useCallback(async (multiplier = 1, useOriginalSize = false) => {
   const c = fabricRef.current;
   if (!c) return null;
-  return exportPNGBlob(c, multiplier);
+  return await exportPNGBlob(c, multiplier, useOriginalSize);
 }, []);
 
-const exportAsMaskBlob = useCallback((multiplier = 1) => {
+const exportAsMaskBlob = useCallback(async (multiplier = 1, useOriginalSize = false) => {
   const c = fabricRef.current;
   if (!c) return null;
-  return exportMaskBlob(c, multiplier);
+  return await exportMaskBlob(c, multiplier, useOriginalSize);
 }, []);
 
 const applyBlobResult = useCallback(async (blob, opts) => {
   const c = fabricRef.current;
   if (!c) return;
   await applyResultBlob(c, blob, opts);
+}, []);
+
+const getExportMultiplier = useCallback(() => {
+  const c = fabricRef.current;
+  if (!c) return 1;
+  return getOriginalSizeMultiplier(c);
 }, []);
   
 const actions = useMemo(() => {
@@ -132,20 +154,24 @@ const actions = useMemo(() => {
     importFile,
     importFromURL,
     reset,
+    clearMask,
     exportAsPNG,
     exportAsPNGBlob,
     exportAsMaskBlob,
     applyBlobResult,
+    getExportMultiplier,
   };
 }, [
   setSize,
   importFile,
   importFromURL,
   reset,
+  clearMask,
   exportAsPNG,
   exportAsPNGBlob,
   exportAsMaskBlob,
   applyBlobResult,
+  getExportMultiplier,
 ]);
 
 return {

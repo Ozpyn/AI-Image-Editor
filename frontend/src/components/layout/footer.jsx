@@ -5,8 +5,8 @@ export default function Footer() {
     <footer className="h-12 w-full border-t border-white/10 bg-panel/70 backdrop-blur supports-backdrop-filter:bg-panel/50">
       <div className="mx-auto flex h-full max-w-400 items-center justify-between px-3 md:px-4">
         <div className="flex items-center gap-2 text-xs text-gray-400">
-          <span className="rounded-md bg-white/5 px-2 py-1">4000 × 3000 px</span>
-          <span className="hidden md:inline">•</span>
+          <span className="rounded-md bg-white/5 px-2 py-1">4000 x 3000 px</span>
+          <span className="hidden md:inline">-</span>
           <span className="hidden md:inline">Ready</span>
         </div>
 

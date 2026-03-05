@@ -1,6 +1,46 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
+ * Get dimensions of an image blob
+ */
+async function getSize(blob) {
+  if (!blob || !(blob instanceof Blob)) {
+    throw new Error("getSize: argument must be a Blob");
+  }
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: img.width, height: img.height });
+    };
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load image for size measurement"));
+    };
+    
+    img.src = url;
+  });
+}
+
+/**
+ * Download a blob as a file to the user's local machine
+ */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
  * AI hook (client-side)
  * Requires canvas "actions" from useCanvas:
  *  - exportAsPNGBlob(multiplier)
@@ -70,11 +110,6 @@ export function useAiFeatures({
    * - calls /inpaint
    * - optionally applies to canvas
    */
-async function getSize(blob) {
-  const bmp = await createImageBitmap(blob);
-  return { width: bmp.width, height: bmp.height };
-}
-
   const inpaintFromCanvas = useCallback(
     async (
       {
@@ -83,10 +118,13 @@ async function getSize(blob) {
         steps,
         seed,
         exportMultiplier = 1,
+        useOriginalSize = true, // Default to original image size
         apply = true,
         applyMode = "replace", // "replace" | "newLayer"
       } = {}
-    ) => { console.log("🔥 At least it is calling inpaint useAiFeatures");
+    ) => { 
+      console.log("Inpaint called with:", { exportMultiplier, useOriginalSize });
+      
       if (!canvasActions?.exportAsPNGBlob) {
         throw new Error("useAiFeatures: canvasActions.exportAsPNGBlob is missing");
       }
@@ -99,15 +137,30 @@ async function getSize(blob) {
 
       try {
         
-        const imageBlob = canvasActions.exportAsPNGBlob(exportMultiplier);
-        const maskBlob = canvasActions.exportAsMaskBlob(exportMultiplier);
+        const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier, useOriginalSize);
+        const maskBlob = await canvasActions.exportAsMaskBlob(exportMultiplier, useOriginalSize);
 
         if (!imageBlob) throw new Error("Failed to export canvas image");
         if (!maskBlob) throw new Error("Failed to export canvas mask");
 
         //lets print the size to avoid mismatch with SDXL
-        console.log("🧪 imageBlob", await getSize(imageBlob));
-        console.log("🧪 maskBlob ", await getSize(maskBlob));
+        const imageSize = await getSize(imageBlob);
+        const maskSize = await getSize(maskBlob);
+        
+        console.log("Canvas Image exported:", imageSize);
+        console.log("Canvas Mask exported:", maskSize);
+        
+        if (imageSize.width !== maskSize.width || imageSize.height !== maskSize.height) {
+          console.error("DIMENSION MISMATCH!", { imageSize, maskSize });
+        } else {
+          console.log("Dimensions match!");
+        }
+
+        // // Save mask and image locally for testing purposes only (Uncomment to use)
+        // const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
+        // downloadBlob(imageBlob, `test-image-${timestamp}.png`);
+        // downloadBlob(maskBlob, `test-mask-${timestamp}.png`);
+        // console.log("Test files saved locally:", { timestamp });
 
         const fd = createFormData(prompt, imageBlob, maskBlob, {
           guidance_scale,
