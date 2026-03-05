@@ -82,8 +82,8 @@ export function useAiFeatures({
   );
 
   const pollTaskResult = useCallback(
-    async (taskId, maxWaitTime = 300000) => {
-      // Poll every 5 seconds, max wait time 5 minutes
+    async (taskId, maxWaitTime = 420000) => {
+      // Poll every 5 seconds, max wait time 7 minutes
       const start = Date.now();
       while (Date.now() - start < maxWaitTime) {
         try {
