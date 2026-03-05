@@ -81,25 +81,65 @@ export function useAiFeatures({
     []
   );
 
-  const fetchBlob = useCallback(async (endpoint, formData) => {
-    const res = await fetch(`${apiBase}${endpoint}`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!res.ok) {
-      // Try to surface backend message (FastAPI often returns JSON/text)
-      let detail = "";
-      try {
-        detail = await res.text();
-      } catch {
-        /* ignore */
+  const pollTaskResult = useCallback(
+    async (taskId, maxWaitTime = 300000) => {
+      // Poll every 500ms, max wait time 5 minutes
+      const start = Date.now();
+      while (Date.now() - start < maxWaitTime) {
+        try {
+          const res = await fetch(`${apiBase}/task/${taskId}`);
+          
+          if (res.status === 202) {
+            // Still processing
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            continue;
+          }
+          
+          if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || `Task failed: ${res.status}`);
+          }
+          
+          return await res.blob();
+        } catch (err) {
+          throw new Error(`Poll error: ${err.message}`);
+        }
       }
-      throw new Error(detail || `Request failed: ${res.status}`);
-    }
+      throw new Error("Task polling timeout (5 minutes exceeded)");
+    },
+    [apiBase]
+  );
 
-    return await res.blob();
-  }, [apiBase]);
+  const fetchBlob = useCallback(
+    async (endpoint, formData) => {
+      const res = await fetch(`${apiBase}${endpoint}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        let detail = "";
+        try {
+          detail = await res.text();
+        } catch {
+          /* ignore */
+        }
+        throw new Error(detail || `Request failed: ${res.status}`);
+      }
+
+      // Check if we got a task ID (202 Accepted response)
+      if (res.status === 202) {
+        const data = await res.json();
+        if (data.task_id) {
+          // Poll for the actual result
+          return await pollTaskResult(data.task_id);
+        }
+      }
+
+      return await res.blob();
+    },
+    [apiBase, pollTaskResult]
+  );
 
   /**
    * Inpaint using current Fabric canvas state:
@@ -215,7 +255,7 @@ export function useAiFeatures({
       setError(null);
 
       try {
-        const imageBlob = canvasActions.exportAsPNGBlob(exportMultiplier);
+        const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier);
         if (!imageBlob) throw new Error("Failed to export canvas image");
 
         const fd = createFormData(prompt, imageBlob, null, {
