@@ -83,7 +83,7 @@ export function useAiFeatures({
 
   const pollTaskResult = useCallback(
     async (taskId, maxWaitTime = 300000) => {
-      // Poll every 500ms, max wait time 5 minutes
+      // Poll every 5 seconds, max wait time 5 minutes
       const start = Date.now();
       while (Date.now() - start < maxWaitTime) {
         try {
@@ -91,7 +91,7 @@ export function useAiFeatures({
           
           if (res.status === 202) {
             // Still processing
-            await new Promise((resolve) => setTimeout(resolve, 500));
+            await new Promise((resolve) => setTimeout(resolve, 5000));
             continue;
           }
           
