@@ -48,10 +48,7 @@ function downloadBlob(blob, filename) {
  *  - applyBlobResult(blob, { mode })
  */
 export function useAiFeatures({
-  
-  //apiBase = "http://aiedit.ozpyn.dev/api/",
-
-  apiBase = "http://127.0.0.1:8000/api",
+  apiBase = `${window.location.origin}/api`,
   canvasActions, // { exportAsPNGBlob, exportAsMaskBlob, applyBlobResult }
 } = {}) {
   const [loading, setLoading] = useState(false);

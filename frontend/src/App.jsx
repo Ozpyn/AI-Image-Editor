@@ -20,7 +20,6 @@ export default function App() {
 
   // Create AI hook; it can run only after canvasActions are available
   const ai = useAiFeatures({
-    apiBase: "http://127.0.0.1:8000/api", // replace with http://VIPER_IP:8000 when ready
     canvasActions,
   });
 
