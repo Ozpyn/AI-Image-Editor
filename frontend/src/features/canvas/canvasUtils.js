@@ -3,36 +3,103 @@ import * as fabricNS from "fabric";
 const { PencilBrush, Textbox, IText, Rect } = fabricNS;
 const Filters = fabricNS.filters || fabricNS.fabric?.filters;
 
-/**
- * Force 2D filter backend to avoid WebGL texture cropping/strips on some large images.
- /** */
-let __forcedFilterBackend = false;
-function ensure2DFilterBackend() {
-  if (__forcedFilterBackend) return;
+/* =========================================================
+   Core helpers
+========================================================= */
 
-  try {
-    const Canvas2dFilterBackend =
-      fabricNS.Canvas2dFilterBackend || fabricNS.fabric?.Canvas2dFilterBackend;
-    const config = fabricNS.config || fabricNS.fabric?.config;
+//We need the user to draw around where they want the inpainting to happen
+//so we can create a mask by leaving that place white and other places black 
 
-    if (config && "enableGLFiltering" in config) {
-      config.enableGLFiltering = false;
-    }
-
-    if (config && Canvas2dFilterBackend) {
-      config.filterBackend = new Canvas2dFilterBackend();
-      __forcedFilterBackend = true;
-    } else {
-      __forcedFilterBackend = true;
-    }
-  } catch {
-    __forcedFilterBackend = true;
-  }
+export function setCanvasSize(canvas, w, h) {
+  if (!canvas) return;
+  canvas.setDimensions({
+    width: w,
+    height: h,
+  });
+  canvas.calcOffset();
+  canvas.requestRenderAll();
 }
 
-/**
- * Canvas utility + tool-mode handlers.
- */
+export function clearCanvas(canvas) {
+  if (!canvas) return;
+  canvas.getObjects().forEach((obj) => canvas.remove(obj));
+  canvas.discardActiveObject();
+  canvas.requestRenderAll();
+}
+
+export function exportPNG(canvas, multiplier = 1) {
+  if (!canvas) return null;
+  return canvas.toDataURL({
+    format: "png",
+    multiplier,
+    enableRetinaScaling: false,//to avoid computer export size mismatch
+  });
+}
+
+export function fitObjectToCanvas(canvas, obj, padding = 32) {
+  if (!canvas || !obj) return;
+
+  const cw = canvas.getWidth();
+  const ch = canvas.getHeight();
+
+  const maxW = Math.max(1, cw - padding * 2);
+  const maxH = Math.max(1, ch - padding * 2);
+
+  // Ensure dimensions are up-to-date
+  obj.setCoords();
+  const ow = obj.getScaledWidth();
+  const oh = obj.getScaledHeight();
+
+  // If image has no scaled size yet, compute from intrinsic
+  const baseW = ow || obj.width || 1;
+  const baseH = oh || obj.height || 1;
+
+  const scale = Math.min(maxW / baseW, maxH / baseH);
+
+  obj.set({
+    scaleX: scale,
+    scaleY: scale,
+    left: cw / 2,
+    top: ch / 2,
+    originX: "center",
+    originY: "center",
+    left: cw / 2,
+    top: ch / 2,
+    scaleX: scale,
+    scaleY: scale,
+  });
+
+  obj.setCoords();
+  canvas.requestRenderAll();
+}
+
+/* =========================================================
+   Tool system
+========================================================= */
+
+function resetCanvasState(canvas) {
+  if (!canvas) return;
+
+  canvas.isDrawingMode = false;
+  canvas.selection = false;
+
+  // Prevent stacking listeners across tool switches
+  canvas.off("mouse:down");
+  canvas.off("mouse:move");
+  canvas.off("mouse:up");
+  canvas.off("path:created");
+
+  canvas.discardActiveObject();
+
+  // Default everything non-interactive; modes can re-enable selectively
+  canvas.forEachObject((obj) => {
+    obj.selectable = false;
+    obj.evented = false;
+  });
+
+  canvas.defaultCursor = "default";
+  canvas.requestRenderAll();
+}
 
 const toolModes = {
   select: enableSelectMode,
@@ -239,6 +306,7 @@ function enableBrushMode(canvas, options = {}) {
   const { color = "#ff3b30", size = 12, decimate = 0.2 } = options;
 
   canvas.selection = false;
+  canvas.defaultCursor = "crosshair";
   canvas.discardActiveObject();
   canvas.isDrawingMode = true;
   canvas.defaultCursor = "crosshair";

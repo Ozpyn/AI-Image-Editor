@@ -11,10 +11,14 @@ export default function App() {
   const [propertiesOpen, setPropertiesOpen] = useState(true);
   const [activeTool, setActiveTool] = useState("select");
 
+  // Brush options
   const [brushColor, setBrushColor] = useState("#ff3b30");
   const [brushSize, setBrushSize] = useState(12);
 
-  const [canvasActions, setCanvasActions] = useState(null);
+  // Image adjustment options (Fabric filters expect -1..1)
+  const [brightness, setBrightness] = useState(0);
+  const [contrast, setContrast] = useState(0);
+  const [saturation, setSaturation] = useState(0);
 
   const handleToolSelect = (tool) => setActiveTool(tool);
 
@@ -67,7 +71,7 @@ export default function App() {
           activeTool={activeTool}
           brushColor={brushColor}
           brushSize={brushSize}
-          onCanvasActionsReady={setCanvasActions} // ✅ gives App access
+          adjustments={{ brightness, contrast, saturation }}
         />
 
         <div className="hidden lg:block">

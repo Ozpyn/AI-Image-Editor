@@ -14,8 +14,26 @@ import {
   applyCropToImage, 
   cancelCrop,
   applyImageAdjustments,
+  applyCropToImage, 
+  cancelCrop,
+  applyImageAdjustments,
 } from "./canvasUtils";
 
+function hasRealSize(canvas) {
+  if (!canvas) return false;
+  const w = typeof canvas.getWidth === "function" ? canvas.getWidth() : canvas.width;
+  const h = typeof canvas.getHeight === "function" ? canvas.getHeight() : canvas.height;
+  return w > 2 && h > 2;
+}
+
+function getFirstImage(canvas) {
+  if (!canvas) return null;
+  const active = canvas.getActiveObject?.();
+  if (active && active.type === "image") return active;
+  return canvas.getObjects?.().find((o) => o?.type === "image") || null;
+}
+
+export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {}) {
 function hasRealSize(canvas) {
   if (!canvas) return false;
   const w = typeof canvas.getWidth === "function" ? canvas.getWidth() : canvas.width;
@@ -48,6 +66,10 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     canvasElRef.current.style.height = "100%";
     canvasElRef.current.style.display = "block";
 
+    canvasElRef.current.style.width = "100%";
+    canvasElRef.current.style.height = "100%";
+    canvasElRef.current.style.display = "block";
+
     fabricRef.current = canvas;
     setReady(true);
 
@@ -71,6 +93,30 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
       setToolMode(canvas, activeTool || "select");
     }
   }, [activeTool, brushColor, brushSize, ready]);
+
+  const safeApplyAdjustments = useCallback(
+    (canvas) => {
+      if (!canvas) return;
+      if (!hasRealSize(canvas)) return;
+
+      const img = getFirstImage(canvas);
+      if (!img) return;
+
+      const nextAdj =
+        adjustments ?? canvas.__adjustments ?? { brightness: 0, contrast: 0, saturation: 0 };
+      canvas.__adjustments = nextAdj;
+
+      canvas.setActiveObject?.(img);
+      applyImageAdjustments(canvas, nextAdj);
+    },
+    [adjustments]
+  );
+
+  useEffect(() => {
+    const canvas = fabricRef.current;
+    if (!ready || !canvas) return;
+    safeApplyAdjustments(canvas);
+  }, [safeApplyAdjustments, ready]);
 
   const safeApplyAdjustments = useCallback(
     (canvas) => {
@@ -131,7 +177,38 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     },
     [safeApplyAdjustments]
   );
+  const setSize = useCallback(
+    (w, h) => {
+      const c = fabricRef.current;
+      if (!c) return;
 
+      setCanvasSize(c, w, h);
+
+      const img = getFirstImage(c);
+      if (img) {
+        fitObjectToCanvas(c, img, 32);
+        c.setActiveObject?.(img);
+      }
+
+      safeApplyAdjustments(c);
+
+      requestAnimationFrame(() => {
+        if (!hasRealSize(c)) return;
+        const img2 = getFirstImage(c);
+        if (!img2) return;
+        fitObjectToCanvas(c, img2, 32);
+        c.setActiveObject?.(img2);
+        safeApplyAdjustments(c);
+        c.requestRenderAll?.();
+      });
+    },
+    [safeApplyAdjustments]
+  );
+
+  const importFile = useCallback(
+    async (file) => {
+      const c = fabricRef.current;
+      if (!c) return;
   const importFile = useCallback(
     async (file) => {
       const c = fabricRef.current;
@@ -139,7 +216,39 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
 
       const dataURL = await loadImageFromFile(file);
       const img = await fabricImageFromURL(dataURL, { selectable: true });
+      const dataURL = await loadImageFromFile(file);
+      const img = await fabricImageFromURL(dataURL, { selectable: true });
 
+      clearCanvas(c);
+      c.add(img);
+
+      
+      img.objectCaching = false;
+      img.set?.({ objectCaching: false });
+
+      if (hasRealSize(c)) {
+        fitObjectToCanvas(c, img, 32);
+        c.setActiveObject(img);
+        safeApplyAdjustments(c);
+        c.requestRenderAll();
+      }
+
+      requestAnimationFrame(() => {
+        if (!hasRealSize(c)) return;
+        const i = getFirstImage(c);
+        if (!i) return;
+
+        i.objectCaching = false;
+        i.set?.({ objectCaching: false });
+
+        fitObjectToCanvas(c, i, 32);
+        c.setActiveObject?.(i);
+        safeApplyAdjustments(c);
+        c.requestRenderAll?.();
+      });
+    },
+    [safeApplyAdjustments]
+  );
       clearCanvas(c);
       c.add(img);
 
@@ -175,7 +284,42 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     async (url) => {
       const c = fabricRef.current;
       if (!c) return;
+  const importFromURL = useCallback(
+    async (url) => {
+      const c = fabricRef.current;
+      if (!c) return;
 
+      const img = await fabricImageFromURL(url, { selectable: true });
+
+      clearCanvas(c);
+      c.add(img);
+
+      img.objectCaching = false;
+      img.set?.({ objectCaching: false });
+
+      if (hasRealSize(c)) {
+        fitObjectToCanvas(c, img, 32);
+        c.setActiveObject(img);
+        safeApplyAdjustments(c);
+        c.requestRenderAll();
+      }
+
+      requestAnimationFrame(() => {
+        if (!hasRealSize(c)) return;
+        const i = getFirstImage(c);
+        if (!i) return;
+
+        i.objectCaching = false;
+        i.set?.({ objectCaching: false });
+
+        fitObjectToCanvas(c, i, 32);
+        c.setActiveObject?.(i);
+        safeApplyAdjustments(c);
+        c.requestRenderAll?.();
+      });
+    },
+    [safeApplyAdjustments]
+  );
       const img = await fabricImageFromURL(url, { selectable: true });
 
       clearCanvas(c);
