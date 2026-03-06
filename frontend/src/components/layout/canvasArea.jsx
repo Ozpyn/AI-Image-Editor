@@ -1,4 +1,4 @@
-/* We'll use fabric.js 7.0, check dependencies in package.json, for canvas; it turns the image into objects instead of just pixels
+/* We'll use fabric.js 7.0, for canvas; it turns the image into objects instead of just pixels
    and supports our graphic editing features. We'll control it using React. */
 
 import { useEffect, useRef } from "react";
@@ -35,7 +35,9 @@ export default function CanvasArea({
 
     const resizeUsingResizeObserver = () => {
       const rect = stageArea.getBoundingClientRect();
-      actions.setSize(rect.width, rect.height);
+      if (rect.width > 0 && rect.height > 0) {
+        actions.setSize(rect.width, rect.height);
+      }
     };
     resizeUsingResizeObserver(); // to initialize size the canvas size using setSize in our useCanvas
 
@@ -56,7 +58,6 @@ export default function CanvasArea({
     try {
       await actions.importFile(file);
     } finally {
-      // allow re-uploading same file again
       e.target.value = "";
     }
   };
@@ -68,15 +69,13 @@ export default function CanvasArea({
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <span className="hidden md:inline">Project:</span>
           <span className="rounded-md bg-white/5 px-2 py-1 text-gray-400">
-            Untitled
+            Group 1 AI Image Editor
           </span>
         </div>
 
         <div className="flex items-center gap-1">
           <IconBtn label="Zoom out" icon={<ZoomOut className="h-4 w-4" />} />
-          <div className="rounded-md bg-white/5 px-2 py-1 text-sm text-gray-600">
-            100%
-          </div>
+          <div className="rounded-md bg-white/5 px-2 py-1 text-sm text-gray-600">100%</div>
           <IconBtn label="Zoom in" icon={<ZoomIn className="h-4 w-4" />} />
           <div className="mx-1 h-6 w-px bg-white/10" />
           <IconBtn label="Fit" icon={<Maximize2 className="h-4 w-4" />} />
@@ -105,21 +104,15 @@ export default function CanvasArea({
             >
               <canvas ref={canvasElRef} className="block" />
 
-              {/* Empty-state overlay */}
               {!ready && (
                 <div className="absolute inset-0 grid place-items-center">
                   <div className="text-center">
-                    <div className="text-sm font-semibold text-gray-200">
-                      Initializing canvas…
-                    </div>
-                    <div className="mt-1 text-xs text-gray-400">
-                      Fabric is mounting
-                    </div>
+                    <div className="text-sm font-semibold text-gray-200">Initializing canvas…</div>
+                    <div className="mt-1 text-xs text-gray-400">Fabric is mounting</div>
                   </div>
                 </div>
               )}
 
-              {/* Import overlay button (always available) */}
               <div className="absolute bottom-3 right-3 flex items-center gap-2">
                 <input
                   ref={fileRef}
@@ -128,9 +121,11 @@ export default function CanvasArea({
                   className="hidden"
                   onChange={onFileChange}
                 />
+
                 <button
                   onClick={onPickFile}
                   className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+                  type="button"
                 >
                   Import Image
                 </button>
@@ -141,6 +136,17 @@ export default function CanvasArea({
                 >
                   Clear
                 </button>
+
+                {/* Crop button only in crop mode */}
+                {activeTool === "crop" && (
+                  <button
+                    onClick={() => actions.applyCrop?.()}
+                    className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+                    type="button"
+                  >
+                    Apply Crop
+                  </button>
+                )}
               </div>
             </div>
           </div>

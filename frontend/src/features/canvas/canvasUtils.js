@@ -62,6 +62,10 @@ export function fitObjectToCanvas(canvas, obj, padding = 32) {
     top: ch / 2,
     originX: "center",
     originY: "center",
+    left: cw / 2,
+    top: ch / 2,
+    scaleX: scale,
+    scaleY: scale,
   });
 
   obj.setCoords();
@@ -152,6 +156,7 @@ function enableBrushMode(canvas, options = {}) {
   const { color = "#ff3b30", size = 12, decimate = 0.4 } = options;
 
   canvas.selection = false;
+  canvas.defaultCursor = "crosshair";
   canvas.discardActiveObject();
   canvas.isDrawingMode = true;
   canvas.defaultCursor = "crosshair";

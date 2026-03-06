@@ -11,37 +11,16 @@ export default function App() {
   const [propertiesOpen, setPropertiesOpen] = useState(true);
   const [activeTool, setActiveTool] = useState("select");
 
+  // Brush options
   const [brushColor, setBrushColor] = useState("#ff3b30");
   const [brushSize, setBrushSize] = useState(12);
 
-  const [canvasActions, setCanvasActions] = useState(null);
+  // Image adjustment options (Fabric filters expect -1..1)
+  const [brightness, setBrightness] = useState(0);
+  const [contrast, setContrast] = useState(0);
+  const [saturation, setSaturation] = useState(0);
 
   const handleToolSelect = (tool) => setActiveTool(tool);
-
-  // Create AI hook; it can run only after canvasActions are available
-  const ai = useAiFeatures({
-    apiBase: "http://127.0.0.1:8000/api", // replace with http://VIPER_IP:8000 when ready
-    canvasActions,
-  });
-
-  const onAiTest = async () => {
-    // optional: switch tool label/state (not required for the test)
-    setActiveTool("ai.inpaint");
-
-    if (!canvasActions) {
-      alert("Canvas not ready yet.");
-      return;
-    }
-
-    // IMPORTANT: this assumes you drew a mask (objects tagged role:'mask')
-    // If you haven't built mask drawing yet, this call will still run but your mask may be empty/black.
-    await ai.inpaintFromCanvas({
-      prompt: "remove the object, realistic background",
-      apply: true,
-      applyMode: "replace",
-      exportMultiplier: 2,
-    });
-  };
 
   return (
     <div className="flex h-screen w-screen flex-col">
@@ -67,13 +46,24 @@ export default function App() {
           activeTool={activeTool}
           brushColor={brushColor}
           brushSize={brushSize}
-          onCanvasActionsReady={setCanvasActions} // ✅ gives App access
+          adjustments={{ brightness, contrast, saturation }}
         />
 
         <div className="hidden lg:block">
           <PropertiesPanel
             open={propertiesOpen}
             onToggle={() => setPropertiesOpen((v) => !v)}
+            activeTool={activeTool}
+            brushColor={brushColor}
+            onBrushColorChange={setBrushColor}
+            brushSize={brushSize}
+            onBrushSizeChange={setBrushSize}
+            brightness={brightness}
+            onBrightnessChange={setBrightness}
+            contrast={contrast}
+            onContrastChange={setContrast}
+            saturation={saturation}
+            onSaturationChange={setSaturation}
           />
         </div>
       </div>

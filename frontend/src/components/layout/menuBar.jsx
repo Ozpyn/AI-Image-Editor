@@ -32,8 +32,6 @@ export default function MenuBar({activeTool, onToolSelect, onAiTest}) {
           <IconPill icon={<Redo2 className="h-4 w-4" />} label="Redo" />
 
           <div className="mx-1 hidden h-6 w-px bg-white/10 md:block" />
-
-          <IconPill icon={<FileImage className="h-4 w-4" />} label="Import" />
           <button className="hidden items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90 md:flex">
             <Download className="h-4 w-4" />
             Export
