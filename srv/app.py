@@ -1,23 +1,10 @@
-from flask import Flask, send_from_directory
-import os
+from flask import Flask, request, jsonify, send_file, send_from_directory
+from ai import run_inpaint, run_outpaint, run_deblur, run_describe
+import json, os
 
 app = Flask(
     __name__,
     static_folder="../frontend/dist",
-    static_url_path="/"
-)
-
-@app.route("/api/hello")
-def hello():
-    return {"message": "Hello from Flask"}
-
-from flask import Flask, request, jsonify, send_file
-from ai import run_inpaint, run_outpaint, run_deblur, run_describe
-import json
-
-app = Flask(
-    __name__,
-    static_folder="../dist",
     static_url_path="/"
 )
 
@@ -95,4 +82,5 @@ def desc():
     return jsonify ({"description": description}), 200
 
 if __name__ == '__main__':
-	app.run(port=8000)
+	app.run(host="0.0.0.0", port=8000)
+
