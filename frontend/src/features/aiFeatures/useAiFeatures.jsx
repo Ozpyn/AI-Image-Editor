@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  */
 export function useAiFeatures({
   
-  //apiBase = "http://aiedit.ozpyn.dev/api/",
+  apiBase = "http://aiedit.ozpyn.dev/api/",
 
   apiBase = "http://127.0.0.1:8000/inpaint",
 //>>>>>>> 05876f0 (just diff api):src/features/aiFeatures/useAiFeatures.jsx
