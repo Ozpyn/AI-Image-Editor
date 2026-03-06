@@ -30,7 +30,7 @@ export default function ToolBox({
   onToggle,
   activeTool,
   onToolSelect,
-  // ✅ NEW brush props
+  // brush props
   brushColor,
   brushSize,
   onBrushColorChange,
