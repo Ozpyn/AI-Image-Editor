@@ -1,50 +1,39 @@
 /* We'll use fabric.js 7.0, for canvas; it turns the image into objects instead of just pixels
+/* We'll use fabric.js 7.0, for canvas; it turns the image into objects instead of just pixels
    and supports our graphic editing features. We'll control it using React. */
 
 import { useEffect, useRef } from "react";
 import { useCanvas } from "../../features/canvas/useCanvas";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
-export default function CanvasArea({
-  activeTool,
-  brushColor,
-  brushSize,
-  onCanvasActionsReady, // ✅ NEW
-}) {
+export default function CanvasArea({ activeTool, brushColor, brushSize, adjustments }) {
   const fileRef = useRef(null);
   const stageRef = useRef(null);
 
-  // forward the activeTool prop to useCanvas hook
+  //  forward adjustments into useCanvas
   const { canvasElRef, ready, actions } = useCanvas({
     activeTool,
     brushColor,
     brushSize,
+    adjustments,
   });
-
-  // ✅ NEW: expose actions upward (for AI features / panels / other UI)
-  useEffect(() => {
-    if (!ready) return;
-    if (typeof onCanvasActionsReady === "function") {
-      onCanvasActionsReady(actions);
-    }
-  }, [ready, actions, onCanvasActionsReady]);
 
   useEffect(() => {
     if (!ready || !stageRef.current) return;
     const stageArea = stageRef.current;
 
-    const resizeUsingResizeObserver = () => {
+    const resize = () => {
       const rect = stageArea.getBoundingClientRect();
-      actions.setSize(rect.width, rect.height);
+      if (rect.width > 0 && rect.height > 0) {
+        actions.setSize(rect.width, rect.height);
+      }
     };
-    resizeUsingResizeObserver(); // to initialize size the canvas size using setSize in our useCanvas
 
-    const theResizeObserver = new ResizeObserver(resizeUsingResizeObserver);
-    theResizeObserver.observe(stageArea);
+    resize(); // initial
+    const ro = new ResizeObserver(resize);
+    ro.observe(stageArea);
 
-    return () => {
-      theResizeObserver.disconnect();
-    };
+    return () => ro.disconnect();
   }, [ready, actions]);
 
   const onPickFile = () => fileRef.current?.click();
@@ -68,11 +57,13 @@ export default function CanvasArea({
           <span className="hidden md:inline">Project:</span>
           <span className="rounded-md bg-white/5 px-2 py-1 text-gray-400">
             Group 1 AI Image Editor
+            Group 1 AI Image Editor
           </span>
         </div>
 
         <div className="flex items-center gap-1">
           <IconBtn label="Zoom out" icon={<ZoomOut className="h-4 w-4" />} />
+          <div className="rounded-md bg-white/5 px-2 py-1 text-sm text-gray-600">100%</div>
           <div className="rounded-md bg-white/5 px-2 py-1 text-sm text-gray-600">100%</div>
           <IconBtn label="Zoom in" icon={<ZoomIn className="h-4 w-4" />} />
           <div className="mx-1 h-6 w-px bg-white/10" />
@@ -95,16 +86,19 @@ export default function CanvasArea({
           />
 
           {/* Fabric canvas */}
+          {/* Fabric canvas */}
           <div className="relative z-10 flex h-full w-full items-center justify-center p-3">
             <div
               ref={stageRef}
               className="relative h-full w-full overflow-hidden rounded-xl border border-white/10 bg-black/20"
             >
-              <canvas ref={canvasElRef} className="block" />
+              <canvas ref={canvasElRef} className="block h-full w-full" />
 
               {!ready && (
                 <div className="absolute inset-0 grid place-items-center">
                   <div className="text-center">
+                    <div className="text-sm font-semibold text-gray-200">Initializing canvas…</div>
+                    <div className="mt-1 text-xs text-gray-400">Fabric is mounting</div>
                     <div className="text-sm font-semibold text-gray-200">Initializing canvas…</div>
                     <div className="mt-1 text-xs text-gray-400">Fabric is mounting</div>
                   </div>
@@ -120,9 +114,11 @@ export default function CanvasArea({
                   onChange={onFileChange}
                 />
 
+
                 <button
                   onClick={onPickFile}
                   className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+                  type="button"
                   type="button"
                 >
                   Import Image
@@ -130,10 +126,22 @@ export default function CanvasArea({
 
                 <button
                   onClick={() => actions.reset()}
-                  className="rounded-lg bg-rose-800 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
+                  className="rounded-lg bg-white/5 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
+                  type="button"
                 >
                   Clear
                 </button>
+
+                {/* Crop button only in crop mode */}
+                {activeTool === "crop" && (
+                  <button
+                    onClick={() => actions.applyCrop?.()}
+                    className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+                    type="button"
+                  >
+                    Apply Crop
+                  </button>
+                )}
 
                 {/* Crop button only in crop mode */}
                 {activeTool === "crop" && (
@@ -157,6 +165,7 @@ export default function CanvasArea({
 function IconBtn({ icon, label }) {
   return (
     <button
+      className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-sky-600 transition hover:bg-indigo-50 hover:text-indigo-600"
       className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-sky-600 transition hover:bg-indigo-50 hover:text-indigo-600"
       aria-label={label}
       title={label}
