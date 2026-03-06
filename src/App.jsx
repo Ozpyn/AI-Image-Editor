@@ -11,13 +11,16 @@ export default function App() {
 
   const [activeTool, setActiveTool] = useState("select");
 
-  // Brush options 
+  // Brush options
   const [brushColor, setBrushColor] = useState("#ff3b30");
   const [brushSize, setBrushSize] = useState(12);
 
-  const handleToolSelect = (tool) => {
-    setActiveTool(tool);
-  };
+  // Image adjustment options (Fabric filters expect -1..1)
+  const [brightness, setBrightness] = useState(0);
+  const [contrast, setContrast] = useState(0);
+  const [saturation, setSaturation] = useState(0);
+
+  const handleToolSelect = (tool) => setActiveTool(tool);
 
   return (
     <div className="flex h-screen w-screen flex-col">
@@ -29,7 +32,6 @@ export default function App() {
           onToggle={() => setToolboxCollapsed((v) => !v)}
           activeTool={activeTool}
           onToolSelect={handleToolSelect}
-          // pass brush controls to toolbox 
           brushColor={brushColor}
           brushSize={brushSize}
           onBrushColorChange={setBrushColor}
@@ -38,15 +40,26 @@ export default function App() {
 
         <CanvasArea
           activeTool={activeTool}
-          // pass brush options to canvas 
           brushColor={brushColor}
           brushSize={brushSize}
+          adjustments={{ brightness, contrast, saturation }}
         />
 
         <div className="hidden lg:block">
           <PropertiesPanel
             open={propertiesOpen}
             onToggle={() => setPropertiesOpen((v) => !v)}
+            activeTool={activeTool}
+            brushColor={brushColor}
+            onBrushColorChange={setBrushColor}
+            brushSize={brushSize}
+            onBrushSizeChange={setBrushSize}
+            brightness={brightness}
+            onBrightnessChange={setBrightness}
+            contrast={contrast}
+            onContrastChange={setContrast}
+            saturation={saturation}
+            onSaturationChange={setSaturation}
           />
         </div>
       </div>
