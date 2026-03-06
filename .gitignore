@@ -35,4 +35,4 @@ build/
 srv/__pycache__/
 srv/.venv/
 srv/app.log
-node_modules
+node_modules/
