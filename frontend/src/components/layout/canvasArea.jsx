@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { useCanvas } from "../../features/canvas/useCanvas";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
-export default function CanvasArea({ activeTool, brushColor, brushSize, adjustments, onCanvasActionsReady }) {
+export default function CanvasArea({ activeTool, brushColor, brushSize, adjustments }) {
   const fileRef = useRef(null);
   const stageRef = useRef(null);
 
@@ -16,14 +16,6 @@ export default function CanvasArea({ activeTool, brushColor, brushSize, adjustme
     brushSize,
     adjustments,
   });
-
-  // Expose actions upward (for AI features / panels / other UI)
-  useEffect(() => {
-    if (!ready) return;
-    if (typeof onCanvasActionsReady === "function") {
-      onCanvasActionsReady(actions);
-    }
-  }, [ready, actions, onCanvasActionsReady]);
 
   useEffect(() => {
     if (!ready || !stageRef.current) return;
