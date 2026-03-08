@@ -13,6 +13,9 @@ frontend/dist-ssr
 frontend/*.local
 frontend/.vite
 
+dist/
+build/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -29,3 +32,4 @@ srv/__pycache__
 srv/.venv
 srv/__pycache__/*
 srv/app.log
+node_modules/
