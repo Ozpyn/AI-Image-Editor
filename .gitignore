@@ -32,4 +32,4 @@ srv/__pycache__
 srv/.venv
 srv/__pycache__/*
 srv/app.log
-node_modules
+node_modules/
