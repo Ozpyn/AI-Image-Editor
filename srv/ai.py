@@ -41,7 +41,6 @@ def run_inpaint(image, mask, prompt=None):
             image=image,
             mask_image=mask,
             guidance_scale=guidance,
-            guidance_scale=guidance,
             num_inference_steps=40,
         )
     
