@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
-from ai import run_inpaint, run_outpaint, run_deblur, run_describe
-import json, os, threading, uuid, time, tempfile
-from io import BytesIO
+from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background
+import json, os
 
 app = Flask(
     __name__,
@@ -181,52 +180,19 @@ def desc():
 
     # This one is fast, no need for async
     description = run_describe(request.files["image"])
-    return jsonify({"description": description}), 200
 
+    return jsonify ({"description": description}), 200
 
-@app.route("/api/task/<task_id>", methods=["GET"])
-def get_task(task_id):
-    """Poll for task status and retrieve result"""
-    with task_lock:
-        if task_id not in task_storage:
-            return jsonify({"error": "Task not found"}), 404
-        
-        task = task_storage[task_id]
-        
-        if task["status"] == "processing":
-            return jsonify({"status": "processing"}), 202
-        elif task["status"] == "completed":
-            return send_file(
-                BytesIO(task["result"]),
-                mimetype="image/png"
-            )
-        elif task["status"] == "failed":
-            return jsonify({"error": task["error"]}), 500
+@app.route("/api/removebg", methods=["POST"])
+def remove_background():
+    if "image" not in request.files:
+        return jsonify({"error": "image is required"}), 400
 
-
-def cleanup_old_tasks():
-    """Periodically clean up old completed tasks from memory"""
-    current_time = time.time()
-    with task_lock:
-        expired_tasks = [
-            task_id for task_id, task in task_storage.items()
-            if current_time - task["created_at"] > MAX_TASK_AGE
-        ]
-        for task_id in expired_tasks:
-            del task_storage[task_id]
-
-
-# Run cleanup every 5 minutes
-@app.before_request
-def periodic_cleanup():
-    if not hasattr(app, '_cleanup_last_run'):
-        app._cleanup_last_run = time.time()
-    
-    if time.time() - app._cleanup_last_run > 300:  # 5 minutes
-        cleanup_old_tasks()
-        app._cleanup_last_run = time.time()
-
+    try:
+        output_path = run_remove_background(request.files["image"])
+        return send_file(output_path, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8000)
-
+	app.run(host="0.0.0.0", port=8000)
