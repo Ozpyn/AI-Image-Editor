@@ -435,6 +435,49 @@ def desc():
 
     return jsonify ({"description": description}), 200
 
+@app.route("/api/task/<task_id>", methods=["GET"])
+def get_task(task_id):
+    """Poll for task status and retrieve result"""
+    with task_lock:
+        if task_id not in task_storage:
+            return jsonify({"error": "Task not found"}), 404
+        
+        task = task_storage[task_id]
+        
+        if task["status"] == "processing":
+            return jsonify({"status": "processing"}), 202
+        elif task["status"] == "completed":
+            return send_file(
+                BytesIO(task["result"]),
+                mimetype="image/png"
+            )
+        elif task["status"] == "failed":
+            return jsonify({"error": task["error"]}), 500
+
+
+def cleanup_old_tasks():
+    """Periodically clean up old completed tasks from memory"""
+    current_time = time.time()
+    with task_lock:
+        expired_tasks = [
+            task_id for task_id, task in task_storage.items()
+            if current_time - task["created_at"] > MAX_TASK_AGE
+        ]
+        for task_id in expired_tasks:
+            del task_storage[task_id]
+
+
+# Run cleanup every 5 minutes
+@app.before_request
+def periodic_cleanup():
+    if not hasattr(app, '_cleanup_last_run'):
+        app._cleanup_last_run = time.time()
+    
+    if time.time() - app._cleanup_last_run > 300:  # 5 minutes
+        cleanup_old_tasks()
+        app._cleanup_last_run = time.time()
+
+
 @app.route("/api/removebg", methods=["POST"])
 def remove_background():
     if "image" not in request.files:
