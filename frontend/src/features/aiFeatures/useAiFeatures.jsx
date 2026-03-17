@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState } from "react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
@@ -55,99 +55,14 @@ export function useAiFeatures({
 } = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState("");
-  const lastUrlRef = useRef(null);
-  const abortControllerRef = useRef(null);
 
-  // Helper function to poll for task results with progress
-  const pollTaskResult = useCallback(async (taskId) => {
-    const maxAttempts = 60;
-    const interval = 1000; // 1 second
-    
-    for (let i = 0; i < maxAttempts; i++) {
-      // Check if aborted
-      if (abortControllerRef.current?.signal.aborted) {
-        throw new Error("Operation cancelled");
-      }
+  // AI Action: Inpainting (remove objects)
+  const inpaint = async (prompt, image, mask, options = {}) => {
+    setLoading(true);
+    setError(null);
 
-      // Update progress based on attempt number
-      const progressValue = Math.min(20 + (i * 1.5), 90);
-      setProgress(progressValue);
-      setStatus(`Processing... ${Math.round(progressValue)}%`);
-      
-      const response = await fetch(`${API_BASE_URL}/task/${taskId}`);
-      
-      if (response.status === 200) {
-        setProgress(95);
-        setStatus("Finalizing...");
-        const blob = await response.blob();
-        setProgress(100);
-        setStatus("Complete!");
-        return blob;
-      }
-      
-      if (response.status !== 202) {
-        throw new Error("Task failed");
-      }
-      
-      // Wait before polling again
-      await new Promise(resolve => setTimeout(resolve, interval));
-    }
-    
-    throw new Error("Task timeout");
-  }, []);
-
-  // Helper: creates formData for inpainting
-  const createFormData = useCallback((prompt, image, mask, { 
-    guidance_scale = 7.5, 
-    steps = 40, 
-    seed = -1,
-    composite = true,
-  } = {}) => {
-    const formData = new FormData();
-    formData.append("prompt", prompt || "");
-    formData.append("image", image);
-    if (mask) formData.append("mask", mask);
-    formData.append("guidance_scale", guidance_scale.toString());
-    formData.append("steps", steps.toString());
-    formData.append("seed", seed.toString());
-    formData.append("composite", composite.toString());
-    return formData;
-  }, []);
-
-  // Helper: creates formData for outpainting
-  const createOutpaintFormData = useCallback((prompt, image, directions, {
-    guidance_scale = 7.5,
-    steps = 40,
-    seed = -1
-  } = {}) => {
-    const formData = new FormData();
-    formData.append("prompt", prompt || "");
-    formData.append("image", image);
-    formData.append("left", directions.left.toString());
-    formData.append("right", directions.right.toString());
-    formData.append("top", directions.top.toString());
-    formData.append("bottom", directions.bottom.toString());
-    formData.append("guidance_scale", guidance_scale.toString());
-    formData.append("steps", steps.toString());
-    formData.append("seed", seed.toString());
-    return formData;
-  }, []);
-
-  // Helper function to fetch blob with task polling support
-  const fetchBlob = useCallback(async (endpoint, formData) => {
-    // Create abort controller for this request
-    abortControllerRef.current = new AbortController();
-    
-    const url = `${API_BASE_URL}${endpoint}`;
-    console.log("Fetching from:", url);
-    
-    setProgress(10);
-    setStatus("Sending request...");
-    
     try {
-      const response = await fetch(url, {
+      const response = await fetch(`${API_BASE_URL}/api/inpaint`, {
         method: "POST",
         body: formData,
         signal: abortControllerRef.current.signal,
@@ -380,57 +295,15 @@ export function useAiFeatures({
       setProgress(0);
       setStatus("Starting outpainting...");
 
-      try {
-        setProgress(10);
-        setStatus("Exporting canvas image...");
-        
-        const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier, useOriginalSize);
-        
-        if (!imageBlob) throw new Error("Failed to export canvas image");
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/outpaint`, {
+        method: "POST",
+        body: createFormData(prompt, image, null, options),
+      });
 
-        setProgress(20);
-        setStatus("Preparing outpainting request...");
-
-        const directions = { left, right, top, bottom };
-        
-        const fd = createOutpaintFormData(prompt, imageBlob, directions, {
-          guidance_scale,
-          steps,
-          seed,
-        });
-
-        setProgress(30);
-        setStatus("Sending to AI server...");
-        
-        const outBlob = await fetchBlob("/outpaint", fd);
-
-        // Create preview URL
-        if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
-        const url = URL.createObjectURL(outBlob);
-        lastUrlRef.current = url;
-
-        if (apply && canvasActions?.applyBlobResult) {
-          setProgress(95);
-          setStatus("Applying result to canvas...");
-          await canvasActions.applyBlobResult(outBlob, { mode: applyMode });
-        }
-
-        setProgress(100);
-        setStatus("Outpainting complete!");
-
-        return { blob: outBlob, url };
-      } catch (err) {
-        const msg = err?.message || "Outpainting failed";
-        setError(msg);
-        setStatus(`Error: ${msg}`);
-        console.error("Outpainting error:", err);
-        throw err;
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Outpainting failed.");
       }
-    },
-    [canvasActions, createOutpaintFormData, fetchBlob]
-  );
 
   /**
    * Deblur an image
