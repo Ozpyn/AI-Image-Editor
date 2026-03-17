@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 /**
  * Get dimensions of an image blob
@@ -54,65 +56,13 @@ export function useAiFeatures({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Keep track of last preview URL to revoke it (avoid memory leaks)
-  const lastUrlRef = useRef(null);
-  useEffect(() => {
-    return () => {
-      if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
-    };
-  }, []);
+  // AI Action: Inpainting (remove objects)
+  const inpaint = async (prompt, image, mask, options = {}) => {
+    setLoading(true);
+    setError(null);
 
-  const createFormData = useCallback(
-    (
-      prompt,
-      imageBlob,
-      maskBlob,
-      { guidance_scale = 6.5, steps = 30, seed = -1 } = {}
-    ) => {
-      const formData = new FormData();
-      formData.append("prompt", prompt);
-      formData.append("image", imageBlob, "image.png");
-      if (maskBlob) formData.append("mask", maskBlob, "mask.png");
-      formData.append("guidance_scale", String(guidance_scale));
-      formData.append("steps", String(steps));
-      formData.append("seed", String(seed));
-      return formData;
-    },
-    []
-  );
-
-  const pollTaskResult = useCallback(
-    async (taskId, maxWaitTime = 420000) => {
-      // Poll every 5 seconds, max wait time 7 minutes
-      const start = Date.now();
-      while (Date.now() - start < maxWaitTime) {
-        try {
-          const res = await fetch(`${apiBase}/task/${taskId}`);
-          
-          if (res.status === 202) {
-            // Still processing
-            await new Promise((resolve) => setTimeout(resolve, 5000));
-            continue;
-          }
-          
-          if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(errorText || `Task failed: ${res.status}`);
-          }
-          
-          return await res.blob();
-        } catch (err) {
-          throw new Error(`Poll error: ${err.message}`);
-        }
-      }
-      throw new Error("Task polling timeout (5 minutes exceeded)");
-    },
-    [apiBase]
-  );
-
-  const fetchBlob = useCallback(
-    async (endpoint, formData) => {
-      const res = await fetch(`${apiBase}${endpoint}`, {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/inpaint`, {
         method: "POST",
         body: formData,
       });
@@ -254,44 +204,71 @@ export function useAiFeatures({
       setLoading(true);
       setError(null);
 
-      try {
-        const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier);
-        if (!imageBlob) throw new Error("Failed to export canvas image");
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/outpaint`, {
+        method: "POST",
+        body: createFormData(prompt, image, null, options),
+      });
 
-        const fd = createFormData(prompt, imageBlob, null, {
-          guidance_scale,
-          steps,
-          seed,
-        });
-
-        const outBlob = await fetchBlob("/outpaint", fd);
-
-        if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
-        const url = URL.createObjectURL(outBlob);
-        lastUrlRef.current = url;
-
-        if (apply && canvasActions?.applyBlobResult) {
-          await canvasActions.applyBlobResult(outBlob, { mode: applyMode });
-        }
-
-        return { blob: outBlob, url };
-      } catch (err) {
-        const msg = err?.message || "Outpainting failed";
-        setError(msg);
-        console.error("Outpainting error:", err);
-        throw err;
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error("Outpainting failed.");
       }
-    },
-    [canvasActions, createFormData, fetchBlob]
-  );
 
-  return {
-    inpaintFromCanvas,
-    outpaintFromCanvas,
-    loading,
-    error,
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      return url; // Returns the outpainted image URL
+    } catch (err) {
+      setError(err.message);
+      console.error("Outpainting error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
-  
+
+  // Helper: creates formData for both inpainting and outpainting
+  const createFormData = (prompt, image, mask, { guidance_scale = 6.5, steps = 30, seed = -1 }) => {
+    const formData = new FormData();
+    formData.append("prompt", prompt);
+    formData.append("image", image);
+    if (mask) formData.append("mask", mask);
+    formData.append("guidance_scale", guidance_scale);
+    formData.append("steps", steps);
+    formData.append("seed", seed);
+    return formData;
+  };
+
+  // AI Action: Background Removal
+  const removeBackground = async (image) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", image);
+
+      const response = await fetch(`${API_BASE_URL}/api/removebg`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Background removal failed.");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      return url; // Returns the image URL with background removed
+
+    } catch (err) {
+      setError(err.message);
+      console.error("Background removal error:", err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { inpaint, outpaint, removeBackground, loading, error };
 }
+
+
