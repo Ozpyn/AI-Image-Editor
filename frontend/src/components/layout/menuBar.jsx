@@ -1,114 +1,7 @@
-import { FileImage, Download, Sparkles, Undo2, Redo2, ChevronDown } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+/* Lets import our icons from lucide */
+import { Download, Sparkles, Undo2, Redo2 } from "lucide-react";
 
-export default function MenuBar({ 
-  activeTool, 
-  onToolSelect, 
-  onAiRemove,
-  onAiInpaint,
-  onAiOutpaint,
-  onAiRemovebg,
-  onAiReplacebg,
-  aiLoading 
-}) {
-  const [isAiDropdownOpen, setIsAiDropdownOpen] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState("");
-  const dropdownRef = useRef(null);
-  const buttonRef = useRef(null);
-  const inputRef = useRef(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
-          buttonRef.current && !buttonRef.current.contains(event.target)) {
-        setIsAiDropdownOpen(false);
-        setAiPrompt("");
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Focus input when dropdown opens
-  useEffect(() => {
-    if (isAiDropdownOpen && inputRef.current) {
-      setTimeout(() => inputRef.current.focus(), 100);
-    }
-  }, [isAiDropdownOpen]);
-
-const handleAiAction = (action, defaultPrompt) => {
-  // For extend, always pass the prompt if it exists, but still open the panel
-  if (action === 'outpaint') {
-    // Pass the prompt if user typed one, otherwise undefined
-    onAiOutpaint(aiPrompt.trim() || undefined);
-  } else {
-    // For other actions, use the prompt if provided, otherwise use default
-    const prompt = aiPrompt.trim() || defaultPrompt;
-    
-    switch(action) {
-      case 'remove':
-        onAiRemove(prompt);
-        break;
-      case 'inpaint':
-        onAiInpaint(prompt);
-        break;
-      case 'removebg':
-        onAiRemovebg();
-        break;
-      case 'replacebg':
-        onAiReplacebg(prompt);
-        break;
-      default:
-        break;
-    }
-  }
-  
-  setIsAiDropdownOpen(false);
-  setAiPrompt("");
-};
-
-  const aiMenuItems = [
-    { 
-      id: 'remove', 
-      label: 'Remove Object', 
-      tooltip: 'Remove the object',
-      requiresPrompt: true,
-      defaultPrompt: 'remove the object, realistic background',
-      action: onAiRemove
-    },
-    { 
-      id: 'inpaint', 
-      label: 'Inpaint', 
-      tooltip: 'Fill selected area with AI',
-      requiresPrompt: true,
-      defaultPrompt: 'fill with realistic content',
-      action: onAiInpaint
-    },
-    { 
-      id: 'outpaint', 
-      label: 'Extend Image', 
-      tooltip: 'Extend image boundaries with AI',
-      requiresPrompt: false, // This opens the extend panel
-      action: onAiOutpaint
-    },
-    { 
-      id: 'removebg', 
-      label: 'Remove Background', 
-      tooltip: 'Remove bg',
-      requiresPrompt: false,
-      action: onAiRemovebg
-    },
-    { 
-      id: 'replacebg', 
-      label: 'Replace Background', 
-      tooltip: 'Replace background with AI',
-      requiresPrompt: true,
-      defaultPrompt: 'replace with a beautiful background',
-      action: onAiReplacebg
-    },
-  ];
-
+export default function MenuBar({ onExport }) {
   return (
     <header className="h-14 w-full border-b border-white/10 bg-panel/90 backdrop-blur supports-backdrop-filter:bg-panel/0 relative" style={{ zIndex: 1000 }}>
       <div className="mx-auto flex h-full max-w-400 items-center justify-between px-3 md:px-4">
@@ -237,8 +130,11 @@ const handleAiAction = (action, defaultPrompt) => {
 
           <div className="mx-1 hidden h-6 w-px bg-white/10 md:block" />
 
-          <IconPill icon={<FileImage className="h-4 w-4" />} label="Import" />
-          <button className="hidden items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90 md:flex">
+          <button
+            type="button"
+            onClick={onExport}
+            className="hidden items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90 md:flex"
+          >
             <Download className="h-4 w-4" />
             Export
           </button>
@@ -252,11 +148,7 @@ function MenuItem({ label, badge, onClick, active }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={[
-        "relative rounded-lg px-3 py-2 text-sm transition-colors",
-        active ? "bg-accent text-white" : "text-gray-200 hover:bg-white/5"
-      ].join(" ")}
+      className="relative rounded-lg px-3 py-2 text-sm text-gray-200 hover:bg-white/5"
     >
       {label}
       {badge && (
@@ -270,7 +162,10 @@ function MenuItem({ label, badge, onClick, active }) {
 
 function IconPill({ icon, label }) {
   return (
-    <button className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 text-sm text-gray-200 hover:bg-white/10 transition-colors">
+    <button
+      type="button"
+      className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 text-sm hover:bg-white/10"
+    >
       {icon}
       <span className="hidden md:inline">{label}</span>
     </button>

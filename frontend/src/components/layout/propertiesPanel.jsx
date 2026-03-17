@@ -1,15 +1,19 @@
-// components/layout/propertiesPanel.jsx (update)
-import { Layers, SlidersHorizontal, Brush, ArrowUp } from "lucide-react";
-import ExtendPanel from "../extendPanel";
+import { Layers, SlidersHorizontal, Brush, Wand2 } from "lucide-react";
 
 export default function PropertiesPanel({
   open,
   onToggle,
+
   activeTool,
+
   brushColor,
   onBrushColorChange,
   brushSize,
   onBrushSizeChange,
+
+  healFlow,
+  onHealFlowChange,
+
   brightness,
   onBrightnessChange,
   contrast,
@@ -20,6 +24,10 @@ export default function PropertiesPanel({
   isAiProcessing,
   externalPrompt, // ✅ Added this line
 }) {
+  const isBrushTool = activeTool === "brush";
+  const isHealTool = activeTool === "heal";
+  const isAdjustTool = activeTool === "adjust";
+
   return (
     <aside
       className={[
@@ -45,21 +53,8 @@ export default function PropertiesPanel({
         </button>
       </div>
 
-      <div className="space-y-3 px-3 pb-3 overflow-y-auto max-h-[calc(100vh-8rem)]">
-        {/* Extend Panel - shown when extend tool is active */}
-        {activeTool === "ai.outpaint" && (
-          <PanelCard title="Extend Image" icon={<ArrowUp className="h-4 w-4" />}>
-            <ExtendPanel 
-              onExtend={onExtend}
-              isProcessing={isAiProcessing}
-              defaultValues={{ left: 100, right: 100, top: 100, bottom: 100 }}
-              externalPrompt={externalPrompt} // ✅ Now this works!
-            />
-          </PanelCard>
-        )}
-
-        {/* Brush options only when brush tool is active */}
-        {activeTool === "brush" && (
+      <div className="space-y-3 px-3 pb-3">
+        {isBrushTool && (
           <PanelCard title="Brush Settings" icon={<Brush className="h-4 w-4" />}>
             <div className="space-y-4">
               <div>
@@ -95,79 +90,98 @@ export default function PropertiesPanel({
           </PanelCard>
         )}
 
-        {/* Mask tool settings */}
-        {activeTool === "mask" && (
-          <PanelCard title="Mask Settings" icon={<Brush className="h-4 w-4" />}>
-            <div>
-              <div className="flex items-center justify-between text-xs text-gray-400">
-                <span>Brush Size</span>
-                <span>{brushSize ?? 40}px</span>
+        {isHealTool && (
+          <PanelCard title="Heal Settings" icon={<Wand2 className="h-4 w-4" />}>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Stamp Size</span>
+                  <span>{brushSize ?? 24}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="80"
+                  value={brushSize ?? 24}
+                  onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
+                  className="mt-2 w-full accent-sky-500"
+                  aria-label="Heal size"
+                />
               </div>
-              <input
-                type="range"
-                min="5"
-                max="200"
-                value={brushSize ?? 40}
-                onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
-                className="mt-2 w-full accent-accent"
-                aria-label="Mask brush size"
-              />
+
+              <div>
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Flow</span>
+                  <span>{Math.round((healFlow ?? 0.45) * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="1"
+                  step="0.05"
+                  value={healFlow ?? 0.45}
+                  onChange={(e) => onHealFlowChange?.(parseFloat(e.target.value))}
+                  className="mt-2 w-full accent-sky-500"
+                  aria-label="Heal flow"
+                />
+              </div>
+
+              <div className="text-[11px] text-gray-500">
+                Hold <span className="font-semibold">Alt</span> (or Option on Mac) and click to set
+                the source point, then paint to softly clone nearby pixels.
+              </div>
             </div>
-            <p className="mt-2 text-xs text-gray-500">
-              Draw white areas to define where AI should inpaint
-            </p>
           </PanelCard>
         )}
 
-        {/* Erase tool settings */}
-        {activeTool === "erase" && (
-          <PanelCard title="Eraser Settings" icon={<Brush className="h-4 w-4" />}>
-            <div>
-              <div className="flex items-center justify-between text-xs text-gray-400">
-                <span>Size</span>
-                <span>{brushSize ?? 40}px</span>
-              </div>
-              <input
-                type="range"
-                min="5"
-                max="200"
-                value={brushSize ?? 40}
-                onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
-                className="mt-2 w-full accent-accent"
-                aria-label="Eraser size"
-              />
+        {isAdjustTool && (
+          <PanelCard
+            title="Image Adjustments"
+            icon={<SlidersHorizontal className="h-4 w-4 text-sky-500" />}
+          >
+            <AdjustSlider
+              label="Brightness"
+              value={brightness}
+              onChange={onBrightnessChange}
+            />
+            <AdjustSlider
+              label="Contrast"
+              value={contrast}
+              onChange={onContrastChange}
+            />
+            <AdjustSlider
+              label="Saturation"
+              value={saturation}
+              onChange={onSaturationChange}
+            />
+            <div className="mt-2 text-[11px] text-gray-500">
+              Range: -1 to 1 (matches Fabric filter inputs). 0 = no change.
             </div>
           </PanelCard>
         )}
 
-        {/* Always show layers panel */}
         <PanelCard title="Layers" icon={<Layers className="h-4 w-4" />}>
           <div className="text-xs text-gray-400">
             Manage your canvas layers
           </div>
           <div className="mt-3 space-y-2">
             <LayerRow name="Background" active />
-            <LayerRow name="Image" />
+            <LayerRow name="Image 1" />
           </div>
-        </PanelCard>
-
-        {/* Always show adjustments */}
-        <PanelCard title="Image Adjustments" icon={<SlidersHorizontal className="h-4 w-4" />}>
-          <AdjustSlider
-            label="Brightness"
-            value={brightness}
-            onChange={onBrightnessChange}
-          />
-          <AdjustSlider
-            label="Contrast"
-            value={contrast}
-            onChange={onContrastChange}
-          />
-          <AdjustSlider
-            label="Saturation"
-            value={saturation}
-            onChange={onSaturationChange}
-          />
+          <div className="mt-3 flex gap-2">
+            <button
+              className="w-1/2 rounded-lg bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200"
+              type="button"
+            >
+              + Add
+            </button>
+            <button
+              className="w-1/2 rounded-lg bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200"
+              type="button"
+            >
+              − Remove
+            </button>
+          </div>
         </PanelCard>
       </div>
     </aside>
