@@ -69,5 +69,5 @@ fi
 
 pip install -r requirements.txt &&
 echo "Requirements Installed" &&
-echo "Running App"
-nohup python3 app.py > app.log 2>&1 &'
+echo "Running App" &&
+python3 app.py'
