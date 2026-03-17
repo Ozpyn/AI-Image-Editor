@@ -7,8 +7,11 @@ import {
   setToolMode,
   exportPNG,
   fitObjectToCanvas,
+  fitImageToView,
+  zoomImage,
+  getZoomPercent,
   setCanvasSize,
-  applyCropToImage, 
+  applyCropToImage,
   cancelCrop,
   applyImageAdjustments,
 } from "./canvasUtils";
@@ -27,10 +30,18 @@ function getFirstImage(canvas) {
   return canvas.getObjects?.().find((o) => o?.type === "image") || null;
 }
 
-export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {}) {
+export function useCanvas({ activeTool, brushColor, brushSize, healFlow = 0.45, adjustments } = {}) {
   const canvasElRef = useRef(null);
   const fabricRef = useRef(null);
   const [ready, setReady] = useState(false);
+  const [zoomPercent, setZoomPercent] = useState(100);
+
+  const adjustmentsRef = useRef(adjustments ?? { brightness: 0, contrast: 0, saturation: 0 });
+
+  useEffect(() => {
+    adjustmentsRef.current =
+      adjustments ?? { brightness: 0, contrast: 0, saturation: 0 };
+  }, [adjustments]);
 
   useEffect(() => {
     if (!canvasElRef.current) return;
@@ -45,8 +56,12 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     canvasElRef.current.style.height = "100%";
     canvasElRef.current.style.display = "block";
 
+    canvas.__fitScale = 1;
+    canvas.__zoomLevel = 1;
+
     fabricRef.current = canvas;
     setReady(true);
+    setZoomPercent(100);
 
     return () => {
       canvas.dispose();
@@ -59,75 +74,60 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     const canvas = fabricRef.current;
     if (!ready || !canvas) return;
 
-    if ((activeTool || "select") === "brush") {
+    if (activeTool === "brush") {
       setToolMode(canvas, "brush", {
         color: brushColor ?? "#ff3b30",
         size: brushSize ?? 12,
       });
+    } else if (activeTool === "heal") {
+      setToolMode(canvas, "heal", {
+        size: brushSize ?? 24,
+        flow: healFlow ?? 0.45,
+      });
+    } else if (activeTool === "adjust") {
+      // Adjustments should keep the canvas in a neutral/select state
+      setToolMode(canvas, "select");
     } else {
       setToolMode(canvas, activeTool || "select");
     }
-  }, [activeTool, brushColor, brushSize, ready]);
+  }, [activeTool, brushColor, brushSize, healFlow, ready]);
 
-  const safeApplyAdjustments = useCallback(
-    (canvas) => {
-      if (!canvas) return;
-      if (!hasRealSize(canvas)) return;
+  const safeApplyAdjustments = useCallback((canvas) => {
+    if (!canvas) return;
+    if (!hasRealSize(canvas)) return;
 
-      const img = getFirstImage(canvas);
-      if (!img) return;
+    const img = getFirstImage(canvas);
+    if (!img) return;
 
-      const nextAdj =
-        adjustments ?? canvas.__adjustments ?? { brightness: 0, contrast: 0, saturation: 0 };
-      canvas.__adjustments = nextAdj;
+    const nextAdj =
+      adjustmentsRef.current ?? { brightness: 0, contrast: 0, saturation: 0 };
 
-      canvas.setActiveObject?.(img);
-      applyImageAdjustments(canvas, nextAdj);
-    },
-    [adjustments]
-  );
+    canvas.__adjustments = nextAdj;
+    canvas.setActiveObject?.(img);
+    applyImageAdjustments(canvas, nextAdj);
+  }, []);
 
   useEffect(() => {
     const canvas = fabricRef.current;
     if (!ready || !canvas) return;
     safeApplyAdjustments(canvas);
-  }, [safeApplyAdjustments, ready]);
+  }, [ready, adjustments, safeApplyAdjustments]);
 
-  const api = useMemo(() => {
-    return {
-      get canvas() {
-        return fabricRef.current;
-      },
-    };
-  }, []);
+  const setSize = useCallback((w, h) => {
+    const c = fabricRef.current;
+    if (!c) return;
 
-  const setSize = useCallback(
-    (w, h) => {
-      const c = fabricRef.current;
-      if (!c) return;
+    setCanvasSize(c, w, h);
 
-      setCanvasSize(c, w, h);
+    const img = getFirstImage(c);
+    if (!img) return;
 
-      const img = getFirstImage(c);
-      if (img) {
-        fitObjectToCanvas(c, img, 32);
-        c.setActiveObject?.(img);
-      }
-
-      safeApplyAdjustments(c);
-
-      requestAnimationFrame(() => {
-        if (!hasRealSize(c)) return;
-        const img2 = getFirstImage(c);
-        if (!img2) return;
-        fitObjectToCanvas(c, img2, 32);
-        c.setActiveObject?.(img2);
-        safeApplyAdjustments(c);
-        c.requestRenderAll?.();
-      });
-    },
-    [safeApplyAdjustments]
-  );
+    fitImageToView(c, 32);
+    c.setActiveObject?.(img);
+    safeApplyAdjustments(c);
+    c.requestRenderAll?.();
+    setZoomPercent(getZoomPercent(c));
+  }, [safeApplyAdjustments]);
 
   const importFile = useCallback(
     async (file) => {
@@ -140,7 +140,6 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
       clearCanvas(c);
       c.add(img);
 
-      
       img.objectCaching = false;
       img.set?.({ objectCaching: false });
 
@@ -148,22 +147,9 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
         fitObjectToCanvas(c, img, 32);
         c.setActiveObject(img);
         safeApplyAdjustments(c);
-        c.requestRenderAll();
-      }
-
-      requestAnimationFrame(() => {
-        if (!hasRealSize(c)) return;
-        const i = getFirstImage(c);
-        if (!i) return;
-
-        i.objectCaching = false;
-        i.set?.({ objectCaching: false });
-
-        fitObjectToCanvas(c, i, 32);
-        c.setActiveObject?.(i);
-        safeApplyAdjustments(c);
         c.requestRenderAll?.();
-      });
+        setZoomPercent(getZoomPercent(c));
+      }
     },
     [safeApplyAdjustments]
   );
@@ -185,22 +171,9 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
         fitObjectToCanvas(c, img, 32);
         c.setActiveObject(img);
         safeApplyAdjustments(c);
-        c.requestRenderAll();
-      }
-
-      requestAnimationFrame(() => {
-        if (!hasRealSize(c)) return;
-        const i = getFirstImage(c);
-        if (!i) return;
-
-        i.objectCaching = false;
-        i.set?.({ objectCaching: false });
-
-        fitObjectToCanvas(c, i, 32);
-        c.setActiveObject?.(i);
-        safeApplyAdjustments(c);
         c.requestRenderAll?.();
-      });
+        setZoomPercent(getZoomPercent(c));
+      }
     },
     [safeApplyAdjustments]
   );
@@ -209,6 +182,7 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     const c = fabricRef.current;
     if (!c) return;
     clearCanvas(c);
+    setZoomPercent(100);
   }, []);
 
   const exportAsPNG = useCallback((multiplier = 2) => {
@@ -217,11 +191,29 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     return exportPNG(c, multiplier);
   }, []);
 
-  /**
-   * ✅ NEW APPLY CROP
-   * Crops the existing image object in-place (best quality & best UX)
-   * instead of exporting a dataURL and re-importing.
-   */
+  const zoomIn = useCallback(() => {
+    const c = fabricRef.current;
+    if (!c) return;
+    const percent = zoomImage(c, 1.2);
+    setZoomPercent(percent);
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    const c = fabricRef.current;
+    if (!c) return;
+    const percent = zoomImage(c, 1 / 1.2);
+    setZoomPercent(percent);
+  }, []);
+
+  const fitToView = useCallback(() => {
+    const c = fabricRef.current;
+    if (!c) return;
+    const percent = fitImageToView(c, 32);
+    setZoomPercent(percent);
+    safeApplyAdjustments(c);
+    c.requestRenderAll?.();
+  }, [safeApplyAdjustments]);
+
   const applyCrop = useCallback(() => {
     const c = fabricRef.current;
     if (!c) return;
@@ -229,20 +221,15 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     const img = applyCropToImage(c);
     if (!img) return;
 
-    
     img.objectCaching = false;
     img.set?.({ objectCaching: false });
 
-    // Fit cropped image nicely into canvas
     fitObjectToCanvas(c, img, 32);
     c.setActiveObject?.(img);
-
-    // Re-apply adjustments after crop
     safeApplyAdjustments(c);
-
     c.requestRenderAll?.();
+    setZoomPercent(getZoomPercent(c));
 
-    // Back to select after applying crop
     setToolMode(c, "select");
   }, [safeApplyAdjustments]);
 
@@ -253,18 +240,46 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     setToolMode(c, "select");
   }, []);
 
-  return {
-    canvasElRef,
-    ready,
-    api,
-    actions: {
+  const actions = useMemo(
+    () => ({
       setSize,
       importFile,
       importFromURL,
       reset,
       exportAsPNG,
+      zoomIn,
+      zoomOut,
+      fitToView,
       applyCrop,
       cancelCrop: cancelCropAction,
-    },
+    }),
+    [
+      setSize,
+      importFile,
+      importFromURL,
+      reset,
+      exportAsPNG,
+      zoomIn,
+      zoomOut,
+      fitToView,
+      applyCrop,
+      cancelCropAction,
+    ]
+  );
+
+  const api = useMemo(() => {
+    return {
+      get canvas() {
+        return fabricRef.current;
+      },
+    };
+  }, []);
+
+  return {
+    canvasElRef,
+    ready,
+    zoomPercent,
+    api,
+    actions,
   };
 }
