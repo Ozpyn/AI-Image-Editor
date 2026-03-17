@@ -18,6 +18,7 @@ frontend/.vite/
 node_modules/
 dist/
 build/
+.vite/
 .env
 
 # Editor directories and files
@@ -35,4 +36,3 @@ build/
 srv/__pycache__/
 srv/.venv/
 srv/app.log
-node_modules/
