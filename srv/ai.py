@@ -156,4 +156,4 @@ def run_remove_background(image):
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     result.save(tmp.name)
 
-    return
+    return tmp.name

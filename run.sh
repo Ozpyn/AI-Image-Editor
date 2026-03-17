@@ -40,6 +40,9 @@ if [[ "$OS" == *"MINGW"* || "$OS" == *"MSYS"* || "$OS" == *"CYGWIN"* || "$OS" ==
 
         echo "Installing rembg with CPU support"
         pip install "rembg[cpu]"
+
+        echo "Installing rembg with CPU support"
+        pip install "rembg[cpu]"
     fi
 
 # -----------------------------
@@ -51,6 +54,9 @@ elif [ "$OS" = "Linux" ]; then
     if [ -e /dev/nvidiactl ] || [ -e /dev/nvidia0 ]; then
         echo "Linux NVIDIA GPU detected — installing CUDA build"
         pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+
+        echo "Installing rembg with GPU support (CUDA)"
+        pip install "rembg[gpu]"
 
         echo "Installing rembg with GPU support (CUDA)"
         pip install "rembg[gpu]"
@@ -71,9 +77,15 @@ elif [ "$OS" = "Linux" ]; then
         echo "Installing rembg with ROCm support"
         pip install "rembg[rocm]"
 
+        echo "Installing rembg with ROCm support"
+        pip install "rembg[rocm]"
+
     else
         echo "Linux CPU-only detected — installing CPU build"
         pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+        echo "Installing rembg with CPU support"
+        pip install "rembg[cpu]"
 
         echo "Installing rembg with CPU support"
         pip install "rembg[cpu]"
@@ -95,9 +107,15 @@ elif [ "$OS" = "Darwin" ] && [ "$ARCH" = "arm64" ]; then
     echo "Installing rembg with CPU support"
     pip install "rembg[cpu]"
 
+    echo "Installing rembg with CPU support"
+    pip install "rembg[cpu]"
+
 else
     echo "Unknown platform — installing CPU build"
     pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+    echo "Installing rembg with CPU support"
+    pip install "rembg[cpu]"
 
     echo "Installing rembg with CPU support"
     pip install "rembg[cpu]"
@@ -109,6 +127,7 @@ fi
 pip install -r requirements.txt &&
 echo "Requirements Installed" &&
 echo "Running App"
+python3 app.py'
 python3 app.py'
 echo "Running App" &&
 python3 app.py'
