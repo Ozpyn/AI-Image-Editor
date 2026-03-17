@@ -4,8 +4,9 @@ bottom=100px in the ExtendPanel, the AI generates a new 3400×2200px image by ad
 The result is then scaled back down to fit the canvas view, but the actual image data is now larger.
  """
 from flask import Flask, request, jsonify, send_file, send_from_directory
-from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background
-import json, os
+from ai import run_inpaint, run_outpaint, run_deblur, run_describe
+import json, os, threading, uuid, time, tempfile
+from io import BytesIO
 
 app = Flask(
     __name__,
@@ -16,14 +17,6 @@ app = Flask(
 task_storage = {}
 MAX_TASK_AGE = 3600  # Keep completed tasks for 1 hour
 task_lock = threading.Lock()
-
-# Task completion estimate helper
-def make_progress_callback(task_id):
-    def progress_update(p):
-        with task_lock:
-            if task_id in task_storage:
-                task_storage[task_id]["progress"] = p
-    return progress_update
 
 # Serve SPA
 @app.route("/", defaults={"path": ""})
@@ -85,12 +78,10 @@ def inpaint():
     prompt = request.form.get("prompt")
     
     def run():
-        progress_callback = make_progress_callback(task_id)
         output_path = run_inpaint(
             open(img_tmp.name, "rb"),
             open(mask_tmp.name, "rb"),
-            prompt,
-            progress_callback=progress_callback
+            prompt
         )
         with open(output_path, "rb") as f:
             result = f.read()
@@ -217,12 +208,10 @@ def outpaint():
     prompt = request.form.get("prompt")
     
     def run():
-        progress_callback = make_progress_callback(task_id)
         output_path = run_outpaint(
             open(img_tmp.name, "rb"),
             directions_data,
-            prompt,
-            progress_callback=progress_callback
+            prompt
         )
         with open(output_path, "rb") as f:
             result = f.read()
@@ -330,11 +319,9 @@ def remove_background():
     prompt = request.form.get("prompt")
     
     def run():
-        progress_callback = make_progress_callback(task_id)
         output_path = run_deblur(
             open(img_tmp.name, "rb"),
-            prompt,
-            progress_callback=progress_callback
+            prompt
         )
         with open(output_path, "rb") as f:
             result = f.read()
@@ -377,7 +364,7 @@ def get_task(task_id):
         elif task["status"] == "failed":
             return jsonify({"error": task["error"]}), 500
 
-    # This one is fast, no need for async or for a progress updater
+    # This one is fast, no need for async
     description = run_describe(request.files["image"])
     return jsonify({"description": description}), 200
 
@@ -391,18 +378,15 @@ def get_task(task_id):
         
         task = task_storage[task_id]
         
-        match task["status"]:
-            case "processing":
-                return jsonify({
-                    "status": "processing",
-                    "progress": task.get("progress", 0)
-                }), 202
-            case "completed":
-                return send_file(BytesIO(task["result"]), mimetype="image/png")
-            case "failed":
-                return jsonify({"error": task["error"]}), 500
-            case _:
-                return jsonify({"error": "Unknown task status"}), 500
+        if task["status"] == "processing":
+            return jsonify({"status": "processing"}), 202
+        elif task["status"] == "completed":
+            return send_file(
+                BytesIO(task["result"]),
+                mimetype="image/png"
+            )
+        elif task["status"] == "failed":
+            return jsonify({"error": task["error"]}), 500
 
 
 def cleanup_old_tasks():
@@ -428,16 +412,6 @@ def periodic_cleanup():
         app._cleanup_last_run = time.time()
 
 
-@app.route("/api/removebg", methods=["POST"])
-def remove_background():
-    if "image" not in request.files:
-        return jsonify({"error": "image is required"}), 400
-
-    try:
-        output_path = run_remove_background(request.files["image"])
-        return send_file(output_path, mimetype="image/png")
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 if __name__ == '__main__':
-	app.run(host="0.0.0.0", port=8000)
+    app.run(host="0.0.0.0", port=8000)
+

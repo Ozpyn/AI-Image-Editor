@@ -179,6 +179,38 @@ export function clearCanvas(canvas) {
   canvas.getObjects().forEach((o) => canvas.remove(o));
   canvas.__fitScale = 1;
   canvas.__zoomLevel = 1;
+  canvas.discardActiveObject();
+  canvas.requestRenderAll();
+}
+
+export function getBaseImageObject(canvas) {
+  if (!canvas) return null;
+  return canvas.toDataURL({
+    format: "png",
+    multiplier,
+    enableRetinaScaling: false,
+  });
+}
+
+export function setCanvasSize(canvas, width, height) {
+  if (!canvas) return;
+
+  const w = Math.max(1, Math.floor(width));
+  const h = Math.max(1, Math.floor(height));
+
+  if (typeof canvas.setDimensions === "function") {
+    canvas.setDimensions({ width: w, height: h });
+  } else {
+    canvas.setWidth?.(w);
+    canvas.setHeight?.(h);
+  }
+  return null;
+}
+
+export function clearMaskObjects(canvas) {
+  if (!canvas) return;
+  const maskObjects = canvas.getObjects().filter(obj => obj?.data?.role === "mask");
+  maskObjects.forEach((obj) => canvas.remove(obj));
   canvas.requestRenderAll();
 }
 

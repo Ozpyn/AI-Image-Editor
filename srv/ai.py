@@ -62,7 +62,7 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
 def run_inpaint(image, mask, prompt=None, progress_callback=None):
     image = Image.open(image).convert("RGB")
     mask = Image.open(mask).convert("RGB")
-    original_size = image.size
+    original_size = image.size  # Store original dimensions (width, height)
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
 
@@ -83,12 +83,11 @@ def run_inpaint(image, mask, prompt=None, progress_callback=None):
             callback=callback,
             callback_steps=1,
         )
-
+    
+    # Resize output back to original image size
     output_image = result.images[0].resize(original_size, Image.Resampling.LANCZOS)
-
-    if progress_callback:
-        progress_callback(100)
-
+    
+    # Save to a temporary file
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     output_image.save(tmp.name)
     return tmp.name
@@ -115,7 +114,7 @@ def run_outpaint(image, directions, prompt=None, progress_callback=None):
 
 def run_deblur(image, prompt=None, progress_callback=None):
     image = Image.open(image).convert("RGB")
-    original_size = image.size
+    original_size = image.size  # Store original dimensions (width, height)
 
     if not prompt:
         inputs = caption_processor(image, return_tensors="pt").to(DEVICE)
@@ -208,6 +207,7 @@ def run_deblur(image, prompt=None, progress_callback=None):
             callback_steps=1,
         )
 
+    # Resize output back to original image size
     output_image = result.images[0].resize(original_size, Image.Resampling.LANCZOS)
     
     try:

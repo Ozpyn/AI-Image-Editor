@@ -23,13 +23,28 @@ export default function App() {
   const [contrast, setContrast] = useState(0);
   const [saturation, setSaturation] = useState(0);
 
-  // Export trigger
-  const [exportRequestId, setExportRequestId] = useState(0);
+  const [canvasActions, setCanvasActions] = useState(null);
 
   const handleToolSelect = (tool) => setActiveTool(tool);
 
-  const handleExport = () => {
-    setExportRequestId((prev) => prev + 1);
+  // Create AI hook; it can run only after canvasActions are available
+  const ai = useAiFeatures({
+    canvasActions,
+  });
+
+  const onAiTest = async () => {
+    setActiveTool("ai.inpaint");
+
+    if (!canvasActions) {
+      alert("Canvas not ready yet.");
+      return;
+    }
+
+    await ai.inpaintFromCanvas({
+      prompt: "remove the object, realistic background",
+      apply: true,
+      applyMode: "replace",
+    });
   };
 
   return (
@@ -38,7 +53,6 @@ export default function App() {
         activeTool={activeTool}
         onToolSelect={handleToolSelect}
         onAiTest={onAiTest}
-        onExport={handleExport}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -61,7 +75,7 @@ export default function App() {
           brushSize={brushSize}
           healFlow={healFlow}
           adjustments={{ brightness, contrast, saturation }}
-          exportRequestId={exportRequestId}
+          onCanvasActionsReady={setCanvasActions}
         />
 
         <div className="hidden lg:block">
