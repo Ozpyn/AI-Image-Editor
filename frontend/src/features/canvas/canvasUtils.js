@@ -1,39 +1,198 @@
+// canvasUtils.js
+import { PencilBrush, Textbox, Rect } from "fabric";
 import * as fabricNS from "fabric";
 import { fabricImageFromURL } from "./loadImage";
 
-const { PencilBrush, Textbox, IText, Rect } = fabricNS;
 const Filters = fabricNS.filters || fabricNS.fabric?.filters;
 
-/**
- * Force 2D filter backend to avoid WebGL texture cropping/strips on some large images.
- /** */
-let __forcedFilterBackend = false;
-function ensure2DFilterBackend() {
-  if (__forcedFilterBackend) return;
+/* =========================================================
+   Core helpers
+========================================================= */
 
-  try {
-    const Canvas2dFilterBackend =
-      fabricNS.Canvas2dFilterBackend || fabricNS.fabric?.Canvas2dFilterBackend;
-    const config = fabricNS.config || fabricNS.fabric?.config;
+//We need the user to draw around where they want the inpainting to happen
+//so we can create a mask by leaving that place white and other places black 
 
-    if (config && "enableGLFiltering" in config) {
-      config.enableGLFiltering = false;
-    }
-
-    if (config && Canvas2dFilterBackend) {
-      config.filterBackend = new Canvas2dFilterBackend();
-      __forcedFilterBackend = true;
-    } else {
-      __forcedFilterBackend = true;
-    }
-  } catch {
-    __forcedFilterBackend = true;
-  }
+export function setCanvasSize(canvas, w, h) {
+  if (!canvas) return;
+  canvas.setDimensions({
+    width: w,
+    height: h,
+  });
+  canvas.calcOffset();
+  canvas.requestRenderAll();
 }
 
-/**
- * Canvas utility + tool-mode handlers.
- */
+export function clearCanvas(canvas) {
+  if (!canvas) return;
+  canvas.getObjects().forEach((obj) => canvas.remove(obj));
+  canvas.discardActiveObject();
+  canvas.requestRenderAll();
+}
+
+export function clearMaskObjects(canvas) {
+  if (!canvas) return;
+  const maskObjects = canvas.getObjects().filter(obj => obj?.data?.role === "mask");
+  maskObjects.forEach((obj) => canvas.remove(obj));
+  canvas.requestRenderAll();
+}
+
+export function exportPNG(canvas, multiplier = 1) {
+  if (!canvas) return null;
+  return canvas.toDataURL({
+    format: "png",
+    multiplier,
+    enableRetinaScaling: false,
+  });
+}
+
+export function fitObjectToCanvas(canvas, obj, padding = 32) {
+  if (!canvas || !obj) return;
+
+  const cw = canvas.getWidth();
+  const ch = canvas.getHeight();
+
+  const maxW = Math.max(1, cw - padding * 2);
+  const maxH = Math.max(1, ch - padding * 2);
+
+  // Ensure dimensions are up-to-date
+  obj.setCoords();
+  const ow = obj.getScaledWidth();
+  const oh = obj.getScaledHeight();
+
+  // If image has no scaled size yet, compute from intrinsic
+  const baseW = ow || obj.width || 1;
+  const baseH = oh || obj.height || 1;
+
+  const scale = Math.min(maxW / baseW, maxH / baseH);
+
+  obj.set({
+    scaleX: scale,
+    scaleY: scale,
+    left: cw / 2,
+    top: ch / 2,
+    originX: "center",
+    originY: "center",
+  });
+
+  obj.setCoords();
+  canvas.requestRenderAll();
+}
+
+export function getBaseImageObject(canvas) {
+  if (!canvas) return null;
+  
+  const objects = canvas.getObjects();
+  for (const obj of objects) {
+    const isMask = obj?.data?.role === "mask";
+    const isPath = obj.type === "path";
+    if (!isMask && !isPath && obj.width && obj.height) {
+      return obj;
+    }
+  }
+  return null;
+}
+
+export function getOriginalImageDimensions(imageObj) {
+  if (!imageObj) return null;
+  
+  const element = imageObj._element || imageObj._originalElement;
+  if (element && element.naturalWidth && element.naturalHeight) {
+    return {
+      width: element.naturalWidth,
+      height: element.naturalHeight,
+    };
+  }
+  return {
+    width: imageObj.width,
+    height: imageObj.height,
+  };
+}
+
+export function getOriginalSizeMultiplier(canvas) {
+  const baseImage = getBaseImageObject(canvas);
+  if (!baseImage) return 1;
+
+  const originalDims = getOriginalImageDimensions(baseImage);
+  if (!originalDims) return 1;
+  
+  const originalW = originalDims.width;
+  const originalH = originalDims.height;
+  
+  const imageScaledW = baseImage.getScaledWidth();
+  const imageScaledH = baseImage.getScaledHeight();
+  
+  const multiplierW = originalW / imageScaledW;
+  const multiplierH = originalH / imageScaledH;
+  
+  return (multiplierW + multiplierH) / 2;
+}
+
+/* =========================================================
+   Image adjustment utils (from main branch)
+========================================================= */
+
+export function applyImageAdjustments(canvas, adjustments = {}) {
+  if (!canvas) return;
+
+  if (!Filters) {
+    console.warn("Fabric filters are not available in this build. Skipping adjustments.");
+    return;
+  }
+
+  const active = canvas.getActiveObject?.();
+  const img =
+    active && active.type === "image"
+      ? active
+      : canvas.getObjects()?.find((o) => o?.type === "image");
+
+  if (!img) return;
+
+  const { brightness = 0, contrast = 0, saturation = 0 } = adjustments;
+  canvas.__adjustments = { brightness, contrast, saturation };
+
+  img.objectCaching = false;
+  img.set?.("dirty", true);
+
+  const nextFilters = [];
+  if (Math.abs(brightness) > 1e-6) nextFilters.push(new Filters.Brightness({ brightness }));
+  if (Math.abs(contrast) > 1e-6) nextFilters.push(new Filters.Contrast({ contrast }));
+  if (Math.abs(saturation) > 1e-6) nextFilters.push(new Filters.Saturation({ saturation }));
+
+  img.filters = nextFilters;
+  img.applyFilters?.();
+
+  img.setCoords?.();
+  canvas.setActiveObject?.(img);
+  canvas.requestRenderAll?.();
+}
+
+/* =========================================================
+   Tool system
+========================================================= */
+
+function resetCanvasState(canvas) {
+  if (!canvas) return;
+
+  canvas.isDrawingMode = false;
+  canvas.selection = false;
+
+  removeCropArtifacts(canvas);
+
+  canvas.off("mouse:down");
+  canvas.off("mouse:move");
+  canvas.off("mouse:up");
+  canvas.off("path:created");
+
+  canvas.discardActiveObject();
+
+  canvas.forEachObject((obj) => {
+    obj.selectable = false;
+    obj.evented = false;
+  });
+
+  canvas.defaultCursor = "default";
+  canvas.requestRenderAll();
+}
 
 const toolModes = {
   select: enableSelectMode,
@@ -55,323 +214,26 @@ export function setToolMode(canvas, mode = "select", options = {}) {
   canvas.requestRenderAll();
 }
 
-function resetCanvasState(canvas) {
-  canvas.isDrawingMode = false;
-  canvas.selection = false;
-  canvas.defaultCursor = "default";
-
-  removeCropArtifacts(canvas);
-
-  canvas.off("mouse:down");
-  canvas.off("mouse:move");
-  canvas.off("mouse:up");
-  canvas.off("path:created");
-
-  canvas.discardActiveObject();
-
-  canvas.forEachObject((obj) => {
-    obj.selectable = false;
-    obj.evented = false;
-  });
-}
+/* =========================================================
+   Select mode
+========================================================= */
 
 function enableSelectMode(canvas) {
-  canvas.isDrawingMode = false;
   canvas.selection = true;
   canvas.defaultCursor = "default";
 
   canvas.forEachObject((obj) => {
-    if (obj.data?.role === "mask") {
-      obj.selectable = false;
-      obj.evented = false;
-    } else {
-      obj.selectable = true;
-      obj.evented = true;
-    }
-  });
-
-  canvas.requestRenderAll();
-}
-
-/* ------------------------------- Image utils ------------------------------ */
-
-export function fitObjectToCanvas(canvas, obj, padding = 32) {
-  if (!canvas || !obj) return;
-
-  const cw = canvas.getWidth();
-  const ch = canvas.getHeight();
-
-  const availableW = Math.max(1, cw - padding * 2);
-  const availableH = Math.max(1, ch - padding * 2);
-
-  const rawW = Math.max(1, obj.width || 1);
-  const rawH = Math.max(1, obj.height || 1);
-
-  const scale = Math.min(availableW / rawW, availableH / rawH);
-
-  obj.set({
-    originX: "center",
-    originY: "center",
-    left: cw / 2,
-    top: ch / 2,
-    scaleX: scale,
-    scaleY: scale,
-  });
-
-  obj.setCoords?.();
-  canvas.requestRenderAll?.();
-}
-
-export function clearCanvas(canvas) {
-  if (!canvas) return;
-  canvas.getObjects().forEach((o) => canvas.remove(o));
-  canvas.requestRenderAll();
-}
-
-export function clearMaskObjects(canvas) {
-  if (!canvas) return;
-  const maskObjects = canvas.getObjects().filter((obj) => obj?.data?.role === "mask");
-  maskObjects.forEach((obj) => canvas.remove(obj));
-  canvas.requestRenderAll();
-}
-
-export function exportPNG(canvas, multiplier = 2) {
-  if (!canvas) return null;
-  return canvas.toDataURL({
-    format: "png",
-    multiplier,
-    enableRetinaScaling: true,
-  });
-}
-
-export function setCanvasSize(canvas, width, height) {
-  if (!canvas) return;
-
-  const w = Math.max(1, Math.floor(width));
-  const h = Math.max(1, Math.floor(height));
-
-  if (typeof canvas.setDimensions === "function") {
-    canvas.setDimensions({ width: w, height: h });
-  } else {
-    canvas.setWidth?.(w);
-    canvas.setHeight?.(h);
-  }
-
-  canvas.calcOffset?.();
-  canvas.requestRenderAll?.();
-}
-
-/* -------------------------- Image adjustment utils ------------------------- */
-
-export function applyImageAdjustments(canvas, adjustments = {}) {
-  if (!canvas) return;
-
-  if (!Filters) {
-    console.warn("Fabric filters are not available in this build. Skipping adjustments.");
-    return;
-  }
-
-  ensure2DFilterBackend();
-
-  const active = canvas.getActiveObject?.();
-  const img =
-    active && active.type === "image"
-      ? active
-      : canvas.getObjects()?.find((o) => o?.type === "image");
-
-  if (!img) return;
-
-  const { brightness = 0, contrast = 0, saturation = 0 } = adjustments;
-  canvas.__adjustments = { brightness, contrast, saturation };
-
-  img.objectCaching = false;
-  img.set?.({ objectCaching: false });
-  img.set?.("dirty", true);
-
-  const nextFilters = [];
-  if (Math.abs(brightness) > 1e-6) nextFilters.push(new Filters.Brightness({ brightness }));
-  if (Math.abs(contrast) > 1e-6) nextFilters.push(new Filters.Contrast({ contrast }));
-  if (Math.abs(saturation) > 1e-6) nextFilters.push(new Filters.Saturation({ saturation }));
-
-  img.filters = nextFilters;
-
-  const after = () => {
-    img.setCoords?.();
-    fitObjectToCanvas(canvas, img, 32);
-    canvas.setActiveObject?.(img);
-    canvas.requestRenderAll?.();
-  };
-
-  try {
-    if (typeof img.applyFilters === "function" && img.applyFilters.length >= 1) {
-      img.applyFilters(after);
-    } else {
-      img.applyFilters?.();
-      after();
-    }
-  } catch {
-    img.applyFilters?.();
-    after();
-  }
-}
-
-/* ------------------------------- Tool modes ------------------------------ */
-
-function enableBrushMode(canvas, options = {}) {
-  const { color = "#ff3b30", size = 12, decimate = 0.2 } = options;
-
-  canvas.selection = false;
-  canvas.discardActiveObject();
-  canvas.isDrawingMode = true;
-  canvas.defaultCursor = "crosshair";
-
-  canvas.forEachObject((obj) => {
-    obj.selectable = false;
-    obj.evented = false;
-  });
-
-  const brush = new PencilBrush(canvas);
-  brush.width = size;
-  brush.color = color;
-  brush.decimate = decimate;
-  canvas.freeDrawingBrush = brush;
-
-  canvas.on("path:created", (e) => {
-    const path = e.path;
-    path.set({ selectable: false, evented: false });
-    path.data = { role: "brush" };
-  });
-
-  canvas.requestRenderAll();
-}
-
-function enableEraseMode(canvas, options = {}) {
-  const { size = 50, decimate = 0.4 } = options;
-
-  canvas.selection = false;
-  canvas.discardActiveObject();
-  canvas.isDrawingMode = true;
-  canvas.defaultCursor = "crosshair";
-
-  canvas.forEachObject((obj) => {
-    obj.selectable = false;
-    obj.evented = false;
-  });
-
-  const brush = new PencilBrush(canvas);
-  brush.width = size;
-  brush.color = "rgba(0,0,0,1)"; // color doesn't matter with destination-out
-  brush.decimate = decimate;
-  canvas.freeDrawingBrush = brush;
-
-  canvas.on("path:created", (e) => {
-    const path = e.path;
-    if (!path) return;
-    path.set({
-      selectable: false,
-      evented: false,
-      globalCompositeOperation: "destination-out",
-    });
-    canvas.bringObjectToFront(path);
-    canvas.requestRenderAll();
+    const isMask = obj?.data?.role === "mask";
+    obj.selectable = !isMask;
+    obj.evented = !isMask;
   });
 
   canvas.requestRenderAll();
 }
 
 /* =========================================================
-   Mask mode (draws white strokes for AI inpainting)
-   Creates paths tagged with data.role = "mask"
+   Crop mode
 ========================================================= */
-
-function enableMaskMode(canvas, options = {}) {
-  const { size = 40, decimate = 0.4 } = options;
-
-  canvas.selection = false;
-  canvas.discardActiveObject();
-  canvas.isDrawingMode = true;
-  canvas.defaultCursor = "crosshair";
-
-  const maskBrush = new PencilBrush(canvas);
-  maskBrush.color = "rgba(255, 255, 255, 0.6)";
-  maskBrush.width = size;
-  maskBrush.decimate = decimate;
-  canvas.freeDrawingBrush = maskBrush;
-
-  canvas.off("path:created");
-  canvas.on("path:created", (e) => {
-    const path = e?.path;
-    if (!path) return;
-    path.set({
-      selectable: false,
-      evented: false,
-      stroke: "rgba(255, 255, 255, 0.6)",
-      strokeWidth: size,
-    });
-    path.data = { role: "mask" };
-    canvas.requestRenderAll();
-  });
-
-  canvas.requestRenderAll();
-}
-
-function enableTextMode(canvas) {
-  canvas.selection = false;
-  canvas.discardActiveObject();
-  canvas.isDrawingMode = false;
-  canvas.defaultCursor = "text";
-
-  canvas.forEachObject((obj) => {
-    obj.selectable = false;
-    obj.evented = false;
-  });
-
-  const getPoint = (opt) => {
-    const e = opt?.e;
-    return (
-      (typeof canvas.getScenePoint === "function" && e ? canvas.getScenePoint(e) : null) ||
-      (typeof canvas.getViewportPoint === "function" && e ? canvas.getViewportPoint(e) : null) ||
-      opt?.absolutePointer ||
-      opt?.pointer ||
-      null
-    );
-  };
-
-  const TextClass = Textbox || IText;
-
-  canvas.on("mouse:down", (opt) => {
-    const p = getPoint(opt);
-    if (!p) return;
-
-    const textObj = new TextClass("Type here", {
-      left: p.x,
-      top: p.y,
-      width: 260,
-      fontSize: 36,
-      fill: "#ffffff",
-      selectable: true,
-      evented: true,
-      editable: true,
-      originX: "left",
-      originY: "top",
-    });
-
-    textObj.data = { role: "text" };
-
-    canvas.add(textObj);
-    canvas.setActiveObject(textObj);
-    canvas.requestRenderAll();
-
-    setTimeout(() => {
-      textObj.enterEditing?.();
-      textObj.hiddenTextarea?.focus?.();
-    }, 0);
-  });
-
-  canvas.requestRenderAll();
-}
-
-/* ------------------------------- Crop tool ------------------------------- */
 
 function enableCropMode(canvas) {
   canvas.isDrawingMode = false;
@@ -402,7 +264,7 @@ function enableCropMode(canvas) {
     top: 0,
     width: cw,
     height: ch,
-    fill: "rgba(0,0,0,0)", // keep your current look
+    fill: "rgba(0,0,0,0)",
     selectable: false,
     evented: false,
     excludeFromExport: true,
@@ -440,9 +302,6 @@ function enableCropMode(canvas) {
   canvas.requestRenderAll();
 }
 
-/**
- * ✅ NEW: Apply crop to the IMAGE OBJECT (high quality).
- */
 export function applyCropToImage(canvas) {
   if (!canvas) return null;
 
@@ -456,15 +315,12 @@ export function applyCropToImage(canvas) {
   const Point = fabricNS.Point || fabricNS.fabric?.Point;
   if (!util || !Point) return null;
 
-  // Crop rect bounds in world/canvas coords
   const rect = cropRect.getBoundingRect(true, true);
 
-  // Convert world/canvas points -> image local coords
   const invImg = util.invertTransform(img.calcTransformMatrix());
   const tl = util.transformPoint(new Point(rect.left, rect.top), invImg);
   const br = util.transformPoint(new Point(rect.left + rect.width, rect.top + rect.height), invImg);
 
-  // ✅ Convert from "origin-based local coords" to "top-left local coords"
   const originOffset = (origin, size) => {
     if (origin === "left" || origin === "top") return 0;
     if (origin === "center") return size / 2;
@@ -480,17 +336,14 @@ export function applyCropToImage(canvas) {
   const brx = br.x + ox;
   const bry = br.y + oy;
 
-  // Normalize
   const x1 = Math.min(tlx, brx);
   const y1 = Math.min(tly, bry);
   const x2 = Math.max(tlx, brx);
   const y2 = Math.max(tly, bry);
 
-  // Support repeated crops: add existing crop offsets
   const baseCropX = img.cropX || 0;
   const baseCropY = img.cropY || 0;
 
-  // Use source image dimensions if available
   const sourceW =
     img._originalElement?.naturalWidth ||
     img._originalElement?.width ||
@@ -500,13 +353,11 @@ export function applyCropToImage(canvas) {
     img._originalElement?.height ||
     img.height;
 
-  // Clamp within current visible window (img.width/img.height are current crop window)
   const cropXLocal = Math.max(0, Math.min(img.width, x1));
   const cropYLocal = Math.max(0, Math.min(img.height, y1));
   const cropW = Math.max(1, Math.min(img.width - cropXLocal, x2 - x1));
   const cropH = Math.max(1, Math.min(img.height - cropYLocal, y2 - y1));
 
-  // Final crop in source coords
   const cropX = Math.max(0, Math.min(sourceW - 1, baseCropX + cropXLocal));
   const cropY = Math.max(0, Math.min(sourceH - 1, baseCropY + cropYLocal));
 
@@ -523,7 +374,6 @@ export function applyCropToImage(canvas) {
   });
   img.objectCaching = false;
 
-  // Remove crop UI
   removeCropArtifacts(canvas);
 
   img.setCoords?.();
@@ -532,6 +382,7 @@ export function applyCropToImage(canvas) {
 
   return img;
 }
+
 export function cancelCrop(canvas) {
   if (!canvas) return;
   removeCropArtifacts(canvas);
@@ -550,92 +401,228 @@ function removeCropArtifacts(canvas) {
 }
 
 /* =========================================================
-   Image dimension helpers (for original-size export)
+   Brush mode (draws normal strokes)
 ========================================================= */
 
-export function getBaseImageObject(canvas) {
-  if (!canvas) return null;
-  const objects = canvas.getObjects();
-  for (const obj of objects) {
-    const isMask = obj?.data?.role === "mask";
-    const isPath = obj.type === "path";
-    if (!isMask && !isPath && obj.width && obj.height) {
-      return obj;
-    }
-  }
-  return null;
-}
+function enableBrushMode(canvas, options = {}) {
+  const { color = "#ff3b30", size = 12, decimate = 0.4 } = options;
 
-export function getOriginalImageDimensions(imageObj) {
-  if (!imageObj) return null;
-  const element = imageObj._element || imageObj._originalElement;
-  if (element && element.naturalWidth && element.naturalHeight) {
-    return { width: element.naturalWidth, height: element.naturalHeight };
-  }
-  return { width: imageObj.width, height: imageObj.height };
-}
+  canvas.selection = false;
+  canvas.discardActiveObject();
+  canvas.isDrawingMode = true;
+  canvas.defaultCursor = "crosshair";
 
-export function getOriginalSizeMultiplier(canvas) {
-  const baseImage = getBaseImageObject(canvas);
-  if (!baseImage) return 1;
-  const originalDims = getOriginalImageDimensions(baseImage);
-  if (!originalDims) return 1;
-  const multiplierW = originalDims.width / baseImage.getScaledWidth();
-  const multiplierH = originalDims.height / baseImage.getScaledHeight();
-  return (multiplierW + multiplierH) / 2;
+  const brush = new PencilBrush(canvas);
+  brush.color = color;
+  brush.width = size;
+  brush.decimate = decimate;
+  canvas.freeDrawingBrush = brush;
+
+  canvas.off("path:created");
+  canvas.on("path:created", (e) => {
+    if (!e?.path) return;
+    e.path.set({ selectable: false, evented: false });
+  });
+
+  canvas.requestRenderAll();
 }
 
 /* =========================================================
-   AI bridge utilities – blob import/export
+   Mask mode (draws white strokes for AI inpainting)
+   Creates paths tagged with data.role = "mask"
+========================================================= */
+
+function enableMaskMode(canvas, options = {}) {
+  const { size = 40, decimate = 0.4 } = options;
+
+  canvas.selection = false;
+  canvas.discardActiveObject();
+  canvas.isDrawingMode = true;
+  canvas.defaultCursor = "crosshair";
+
+  const maskBrush = new PencilBrush(canvas);
+  maskBrush.color = "rgba(255, 255, 255, 0.6)";
+  maskBrush.width = size;
+  maskBrush.decimate = decimate;
+  canvas.freeDrawingBrush = maskBrush;
+
+  canvas.off("path:created");
+  canvas.on("path:created", (e) => {
+    const path = e?.path;
+    if (!path) return;
+
+    path.set({
+      selectable: false,
+      evented: false,
+      stroke: "rgba(255, 255, 255, 0.6)",
+      strokeWidth: size,
+    });
+    
+    path.data = { role: "mask" };
+    canvas.requestRenderAll();
+  });
+
+  canvas.requestRenderAll();
+}
+
+/* =========================================================
+   Erase mode (REAL erase)
+   Uses destination-out so strokes erase underlying pixels during render/export.
+========================================================= */
+
+function enableEraseMode(canvas, options = {}) {
+  const { size = 40, decimate = 0.4 } = options;
+
+  canvas.selection = false;
+  canvas.discardActiveObject();
+  canvas.isDrawingMode = true;
+  canvas.defaultCursor = "crosshair";
+
+  const eraser = new PencilBrush(canvas);
+  eraser.width = size;
+  eraser.color = "rgba(0,0,0,1)";
+  eraser.decimate = decimate;
+  canvas.freeDrawingBrush = eraser;
+
+  canvas.off("path:created");
+  canvas.on("path:created", (e) => {
+    const path = e?.path;
+    if (!path) return;
+
+    path.set({
+      selectable: false,
+      evented: false,
+      globalCompositeOperation: "destination-out",
+    });
+
+    canvas.bringObjectToFront(path);
+    canvas.requestRenderAll();
+  });
+
+  canvas.requestRenderAll();
+}
+
+/* =========================================================
+   Text mode
+========================================================= */
+
+function enableTextMode(canvas, options = {}) {
+  const {
+    fill = "#ffffff",
+    fontSize = 36,
+    fontFamily = "Inter, system-ui, sans-serif",
+  } = options;
+
+  canvas.selection = false;
+  canvas.defaultCursor = "text";
+
+  canvas.on("mouse:down", (opt) => {
+    const p = canvas.getScenePoint(opt.e);
+
+    const tb = new Textbox("Type here", {
+      left: p.x,
+      top: p.y,
+      fill,
+      fontSize,
+      fontFamily,
+      editable: true,
+      selectable: true,
+      evented: true,
+      originX: "left",
+      originY: "top",
+    });
+
+    canvas.add(tb);
+    canvas.setActiveObject(tb);
+    tb.enterEditing();
+    tb.selectAll();
+
+    canvas.requestRenderAll();
+  });
+}
+
+/* =========================================================
+   AI bridge utilities (no AI tool logic here)
 ========================================================= */
 
 function dataURLToBlob(dataURL) {
   const [header, base64] = dataURL.split(",");
   const mime = header.match(/data:(.*?);base64/)?.[1] || "image/png";
   const bin = atob(base64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const len = bin.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
   return new Blob([bytes], { type: mime });
 }
 
+// 1) Export full canvas as PNG blob
 export async function exportPNGBlob(canvas, multiplier = 1, useOriginalSize = false) {
   if (!canvas) return null;
+  
   if (useOriginalSize) {
-    return await _exportImageAtOriginalSize(canvas);
+    return await exportImageAtOriginalSize(canvas);
   }
+  
   const dataURL = exportPNG(canvas, multiplier);
   return dataURL ? dataURLToBlob(dataURL) : null;
 }
 
-async function _exportImageAtOriginalSize(canvas) {
+async function exportImageAtOriginalSize(canvas) {
   const baseImage = getBaseImageObject(canvas);
-  if (!baseImage) return await exportPNGBlob(canvas, 1, false);
+  if (!baseImage) {
+    console.warn("No base image found, falling back to canvas export");
+    return await exportPNGBlob(canvas, 1, false);
+  }
+  
   const originalDims = getOriginalImageDimensions(baseImage);
-  if (!originalDims) return await exportPNGBlob(canvas, 1, false);
+  if (!originalDims) {
+    console.warn("Could not get original dimensions, falling back");
+    return await exportPNGBlob(canvas, 1, false);
+  }
+  
   const { width: origW, height: origH } = originalDims;
   const element = baseImage._element || baseImage._originalElement;
+
   if (!element) {
-    const fallbackDataURL = baseImage.toDataURL({ format: "png", quality: 1, multiplier: 1, enableRetinaScaling: false });
+    console.warn("Base image element missing, falling back to object.toDataURL");
+    const fallbackDataURL = baseImage.toDataURL({
+      format: "png",
+      quality: 1,
+      multiplier: 1,
+      enableRetinaScaling: false,
+      width: origW,
+      height: origH,
+    });
     return fallbackDataURL ? dataURLToBlob(fallbackDataURL) : null;
   }
+
   const out = document.createElement("canvas");
   out.width = origW;
   out.height = origH;
   const ctx = out.getContext("2d");
   if (!ctx) return null;
   ctx.drawImage(element, 0, 0, origW, origH);
+
   const dataURL = out.toDataURL("image/png");
   return dataURL ? dataURLToBlob(dataURL) : null;
 }
 
+// 2) Export mask blob from objects tagged { data: { role: "mask" } }
 export async function exportMaskBlob(canvas, multiplier = 1, useOriginalSize = false) {
   if (!canvas) return null;
-  if (useOriginalSize) return await _exportMaskAtOriginalSize(canvas);
+
+  if (useOriginalSize) {
+    return await exportMaskAtOriginalSize(canvas);
+  }
 
   const originalBg = canvas.backgroundColor;
   const originals = [];
+  let maskObjectCount = 0;
+
   canvas.getObjects().forEach((obj) => {
     const isMask = obj?.data?.role === "mask";
+    if (isMask) maskObjectCount++;
+    
     originals.push({
       obj,
       visible: obj.visible,
@@ -645,20 +632,32 @@ export async function exportMaskBlob(canvas, multiplier = 1, useOriginalSize = f
       fill: obj.fill,
       gco: obj.globalCompositeOperation,
     });
+
     if (!isMask) {
       obj.visible = false;
     } else {
       obj.visible = true;
       obj.opacity = 1;
       obj.stroke = "white";
+      obj.strokeWidth = obj.strokeWidth || 1;
       obj.fill = null;
       obj.globalCompositeOperation = "source-over";
     }
   });
+  
+  if (maskObjectCount === 0) {
+    console.warn("No mask objects found! (objects with data.role === 'mask')");
+  }
+
   canvas.backgroundColor = "black";
   canvas.requestRenderAll();
+
   try {
-    const dataURL = canvas.toDataURL({ format: "png", multiplier, enableRetinaScaling: false });
+    const dataURL = canvas.toDataURL({
+      format: "png",
+      multiplier,
+      enableRetinaScaling: false,
+    });
     return dataURL ? dataURLToBlob(dataURL) : null;
   } finally {
     originals.forEach(({ obj, visible, opacity, stroke, strokeWidth, fill, gco }) => {
@@ -669,38 +668,70 @@ export async function exportMaskBlob(canvas, multiplier = 1, useOriginalSize = f
       obj.fill = fill;
       obj.globalCompositeOperation = gco;
     });
+
     canvas.backgroundColor = originalBg;
     canvas.requestRenderAll();
   }
 }
 
-async function _exportMaskAtOriginalSize(canvas) {
+async function exportMaskAtOriginalSize(canvas) {
+  if (!canvas) return null;
+  
   const baseImage = getBaseImageObject(canvas);
-  if (!baseImage) return await exportMaskBlob(canvas, 1, false);
+  if (!baseImage) {
+    console.warn("No base image found for mask export");
+    return await exportMaskBlob(canvas, 1, false);
+  }
+  
   const originalDims = getOriginalImageDimensions(baseImage);
-  if (!originalDims) return await exportMaskBlob(canvas, 1, false);
+  if (!originalDims) {
+    console.warn("Could not get original dimensions for mask");
+    return await exportMaskBlob(canvas, 1, false);
+  }
+  
   const { width: origW, height: origH } = originalDims;
   const imageBounds = baseImage.getBoundingRect();
   const boundsW = Math.max(1, imageBounds.width);
   const boundsH = Math.max(1, imageBounds.height);
-  const multiplier = ((origW / boundsW) + (origH / boundsH)) / 2;
-
+  const multiplierW = origW / boundsW;
+  const multiplierH = origH / boundsH;
+  const multiplier = (multiplierW + multiplierH) / 2;
+  
   const originalBg = canvas.backgroundColor;
   const originals = [];
+  let maskObjectCount = 0;
+  
   canvas.getObjects().forEach((obj) => {
     const isMask = obj?.data?.role === "mask";
+    if (isMask) maskObjectCount++;
+    
     originals.push({
-      obj, visible: obj.visible, opacity: obj.opacity, stroke: obj.stroke,
-      strokeWidth: obj.strokeWidth, fill: obj.fill, gco: obj.globalCompositeOperation,
+      obj,
+      visible: obj.visible,
+      opacity: obj.opacity,
+      stroke: obj.stroke,
+      strokeWidth: obj.strokeWidth,
+      fill: obj.fill,
+      gco: obj.globalCompositeOperation,
     });
-    if (!isMask) { obj.visible = false; }
-    else {
-      obj.visible = true; obj.opacity = 1; obj.stroke = "white";
-      obj.fill = null; obj.globalCompositeOperation = "source-over";
+    
+    if (!isMask) {
+      obj.visible = false;
+    } else {
+      obj.visible = true;
+      obj.opacity = 1;
+      obj.stroke = "white";
+      obj.strokeWidth = obj.strokeWidth || 1;
+      obj.fill = null;
+      obj.globalCompositeOperation = "source-over";
     }
   });
+  
+  console.log("Mask objects found:", maskObjectCount);
+  
   canvas.backgroundColor = "black";
   canvas.requestRenderAll();
+  
   try {
     const dataURL = canvas.toDataURL({
       format: "png",
@@ -711,28 +742,51 @@ async function _exportMaskAtOriginalSize(canvas) {
       multiplier,
       enableRetinaScaling: false,
     });
+
     return dataURL ? dataURLToBlob(dataURL) : null;
   } finally {
     originals.forEach(({ obj, visible, opacity, stroke, strokeWidth, fill, gco }) => {
-      obj.visible = visible; obj.opacity = opacity; obj.stroke = stroke;
-      obj.strokeWidth = strokeWidth; obj.fill = fill; obj.globalCompositeOperation = gco;
+      obj.visible = visible;
+      obj.opacity = opacity;
+      obj.stroke = stroke;
+      obj.strokeWidth = strokeWidth;
+      obj.fill = fill;
+      obj.globalCompositeOperation = gco;
     });
+    
     canvas.backgroundColor = originalBg;
     canvas.requestRenderAll();
   }
 }
 
-export async function applyResultBlob(canvas, blob, { mode = "replace", padding = 32 } = {}) {
+// 3) Apply backend result blob onto the canvas
+export async function applyResultBlob(
+  canvas,
+  blob,
+  { mode = "replace", padding = 32 } = {}
+) {
   if (!canvas || !blob) return;
+
   const url = URL.createObjectURL(blob);
+
   try {
     const img = await fabricImageFromURL(url, { selectable: true, evented: true });
+
     if (mode === "replace") {
       clearCanvas(canvas);
+      canvas.add(img);
+      fitObjectToCanvas(canvas, img, padding);
+      canvas.setActiveObject(img);
+    } else if (mode === "newLayer") {
+      canvas.add(img);
+      fitObjectToCanvas(canvas, img, padding);
+      canvas.setActiveObject(img);
+    } else {
+      canvas.add(img);
+      fitObjectToCanvas(canvas, img, padding);
+      canvas.setActiveObject(img);
     }
-    canvas.add(img);
-    fitObjectToCanvas(canvas, img, padding);
-    canvas.setActiveObject(img);
+
     canvas.requestRenderAll();
   } finally {
     URL.revokeObjectURL(url);
