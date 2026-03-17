@@ -4,14 +4,13 @@ import ToolBox from "./components/layout/toolBox";
 import CanvasArea from "./components/layout/canvasArea";
 import PropertiesPanel from "./components/layout/propertiesPanel";
 import Footer from "./components/layout/footer";
+import { useAiFeatures } from "./features/aiFeatures/useAiFeatures";
 
 export default function App() {
   const [toolboxCollapsed, setToolboxCollapsed] = useState(false);
   const [propertiesOpen, setPropertiesOpen] = useState(true);
-
   const [activeTool, setActiveTool] = useState("select");
 
-  // Brush options
   const [brushColor, setBrushColor] = useState("#ff3b30");
   const [brushSize, setBrushSize] = useState(12);
 
@@ -20,11 +19,37 @@ export default function App() {
   const [contrast, setContrast] = useState(0);
   const [saturation, setSaturation] = useState(0);
 
+  const [canvasActions, setCanvasActions] = useState(null);
+
   const handleToolSelect = (tool) => setActiveTool(tool);
+
+  // Create AI hook; it can run only after canvasActions are available
+  const ai = useAiFeatures({
+    canvasActions,
+  });
+
+  const onAiTest = async () => {
+    setActiveTool("ai.inpaint");
+
+    if (!canvasActions) {
+      alert("Canvas not ready yet.");
+      return;
+    }
+
+    await ai.inpaintFromCanvas({
+      prompt: "remove the object, realistic background",
+      apply: true,
+      applyMode: "replace",
+    });
+  };
 
   return (
     <div className="flex h-screen w-screen flex-col">
-      <MenuBar />
+      <MenuBar
+        activeTool={activeTool}
+        onToolSelect={handleToolSelect}
+        onAiTest={onAiTest}
+      />
 
       <div className="flex min-h-0 flex-1">
         <ToolBox
@@ -43,6 +68,7 @@ export default function App() {
           brushColor={brushColor}
           brushSize={brushSize}
           adjustments={{ brightness, contrast, saturation }}
+          onCanvasActionsReady={setCanvasActions}
         />
 
         <div className="hidden lg:block">
