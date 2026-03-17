@@ -5,6 +5,34 @@ import { fabricImageFromURL } from "./loadImage";
 
 const Filters = fabricNS.filters || fabricNS.fabric?.filters;
 
+/**
+ * Force 2D filter backend to avoid WebGL texture size limits causing
+ * images to appear cropped when filters are applied to large images.
+ */
+let __forcedFilterBackend = false;
+function ensure2DFilterBackend() {
+  if (__forcedFilterBackend) return;
+
+  try {
+    const Canvas2dFilterBackend =
+      fabricNS.Canvas2dFilterBackend || fabricNS.fabric?.Canvas2dFilterBackend;
+    const config = fabricNS.config || fabricNS.fabric?.config;
+
+    if (config && "enableGLFiltering" in config) {
+      config.enableGLFiltering = false;
+    }
+
+    if (config && Canvas2dFilterBackend) {
+      config.filterBackend = new Canvas2dFilterBackend();
+      __forcedFilterBackend = true;
+    } else {
+      __forcedFilterBackend = true;
+    }
+  } catch {
+    __forcedFilterBackend = true;
+  }
+}
+
 /* =========================================================
    Core helpers
 ========================================================= */
@@ -138,6 +166,8 @@ export function applyImageAdjustments(canvas, adjustments = {}) {
     console.warn("Fabric filters are not available in this build. Skipping adjustments.");
     return;
   }
+
+  ensure2DFilterBackend();
 
   const active = canvas.getActiveObject?.();
   const img =
