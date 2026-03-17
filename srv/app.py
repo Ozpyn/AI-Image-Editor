@@ -4,31 +4,15 @@ bottom=100px in the ExtendPanel, the AI generates a new 3400×2200px image by ad
 The result is then scaled back down to fit the canvas view, but the actual image data is now larger.
  """
 from flask import Flask, request, jsonify, send_file, send_from_directory
-from flask_cors import CORS
-from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background
-import json
-import os
-import uuid
-import time
-import threading
-import tempfile
+from ai import run_inpaint, run_outpaint, run_deblur, run_describe
+import json, os, threading, uuid, time, tempfile
 from io import BytesIO
-import traceback
 
 app = Flask(
     __name__,
     static_folder="../frontend/dist",
     static_url_path="/"
 )
-
-# Configure CORS - allow all origins in development
-CORS(app, resources={
-    r"/*": {
-        "origins": ["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
 
 task_storage = {}
 MAX_TASK_AGE = 3600  # Keep completed tasks for 1 hour
@@ -47,31 +31,27 @@ def serve(path):
 def welcome():
     return "AI-Image Editor Flask API"
 
+
 def _run_task_async(task_id, task_func, cleanup_files):
     """Helper to run AI task in background thread with error handling"""
     try:
-        print(f"Starting task {task_id}")
         result = task_func()
         with task_lock:
             task_storage[task_id]["result"] = result
             task_storage[task_id]["status"] = "completed"
-        print(f"Task {task_id} completed successfully")
     except Exception as e:
-        print(f"Task {task_id} failed: {str(e)}")
-        traceback.print_exc()
         with task_lock:
             task_storage[task_id]["error"] = str(e)
             task_storage[task_id]["status"] = "failed"
     finally:
         for filepath in cleanup_files:
             try:
-                if os.path.exists(filepath):
-                    os.unlink(filepath)
-                    print(f"Cleaned up: {filepath}")
-            except Exception as e:
-                print(f"Failed to cleanup {filepath}: {e}")
+                os.unlink(filepath)
+            except:
+                pass
 
-@app.route("/inpaint", methods=["POST", "OPTIONS"])
+
+@app.route("/api/inpaint", methods=["POST"])
 def inpaint():
     # Handle preflight OPTIONS request
     if request.method == "OPTIONS":
@@ -95,58 +75,18 @@ def inpaint():
     mask_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     request.files["image"].save(img_tmp.name)
     request.files["mask"].save(mask_tmp.name)
-    
-    print(f"Saved image to: {img_tmp.name}")
-    print(f"Saved mask to: {mask_tmp.name}")
-    
-    # Get parameters from form
-    prompt = request.form.get("prompt", "")
-    guidance_scale = float(request.form.get("guidance_scale", 7.5))
-    steps = int(request.form.get("steps", 40))
-    seed = int(request.form.get("seed", -1))
-    # ✅ Get composite parameter (default to True for backward compatibility)
-    composite = request.form.get("composite", "true").lower() == "true"
-    
-    print(f"Inpaint params: prompt='{prompt}', guidance_scale={guidance_scale}, steps={steps}, seed={seed}, composite={composite}")
+    prompt = request.form.get("prompt")
     
     def run():
-        try:
-            output_path = run_inpaint(
-                img_tmp.name,
-                mask_tmp.name,
-                prompt,
-                guidance_scale=guidance_scale,
-                num_inference_steps=steps,
-                seed=seed,
-                composite=composite  # ✅ Pass composite to ai.py
-            )
-            
-            print(f"Inpaint output path: {output_path}")
-            
-            # Verify the output file exists and is readable
-            if not os.path.exists(output_path):
-                raise Exception("Output file was not created")
-                
-            with open(output_path, "rb") as f:
-                result = f.read()
-            
-            # Verify the result is valid
-            if not result or len(result) == 0:
-                raise Exception("Output file is empty")
-                
-            print(f"Inpaint result size: {len(result)} bytes")
-            
-            # Clean up output file
-            try:
-                os.unlink(output_path)
-            except:
-                pass
-                
-            return result
-        except Exception as e:
-            print(f"Error in inpaint run function: {str(e)}")
-            traceback.print_exc()
-            raise e
+        output_path = run_inpaint(
+            open(img_tmp.name, "rb"),
+            open(mask_tmp.name, "rb"),
+            prompt
+        )
+        with open(output_path, "rb") as f:
+            result = f.read()
+        os.unlink(output_path)
+        return result
     
     thread = threading.Thread(
         target=_run_task_async,
@@ -155,9 +95,8 @@ def inpaint():
     )
     thread.start()
     
-    response = jsonify({"task_id": task_id})
-    response.status_code = 202
-    return response
+    return jsonify({"task_id": task_id}), 202
+
 
 @app.route("/outpaint", methods=["POST", "OPTIONS"])
 def outpaint():
@@ -253,7 +192,43 @@ def outpaint():
     response.status_code = 202
     return response
 
-@app.route("/deblur", methods=["POST", "OPTIONS"])
+    task_id = str(uuid.uuid4())
+    
+    with task_lock:
+        task_storage[task_id] = {
+            "status": "processing",
+            "result": None,
+            "error": None,
+            "created_at": time.time()
+        }
+    
+    img_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    request.files["image"].save(img_tmp.name)
+    directions_data = json.loads(directions)
+    prompt = request.form.get("prompt")
+    
+    def run():
+        output_path = run_outpaint(
+            open(img_tmp.name, "rb"),
+            directions_data,
+            prompt
+        )
+        with open(output_path, "rb") as f:
+            result = f.read()
+        os.unlink(output_path)
+        return result
+    
+    thread = threading.Thread(
+        target=_run_task_async,
+        args=(task_id, run, [img_tmp.name]),
+        daemon=True
+    )
+    thread.start()
+    
+    return jsonify({"task_id": task_id}), 202
+
+
+@app.route("/api/deblur", methods=["POST"])
 def deblur():
     # Handle preflight OPTIONS request
     if request.method == "OPTIONS":
@@ -329,13 +304,39 @@ def remove_background():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 
-    try:
-        output_path = run_remove_background(request.files["image"])
-        return send_file(output_path, mimetype="image/png")
-    except Exception as e:
-        print(f"Remove background error: {str(e)}")
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+    task_id = str(uuid.uuid4())
+    
+    with task_lock:
+        task_storage[task_id] = {
+            "status": "processing",
+            "result": None,
+            "error": None,
+            "created_at": time.time()
+        }
+    
+    img_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    request.files["image"].save(img_tmp.name)
+    prompt = request.form.get("prompt")
+    
+    def run():
+        output_path = run_deblur(
+            open(img_tmp.name, "rb"),
+            prompt
+        )
+        with open(output_path, "rb") as f:
+            result = f.read()
+        os.unlink(output_path)
+        return result
+    
+    thread = threading.Thread(
+        target=_run_task_async,
+        args=(task_id, run, [img_tmp.name]),
+        daemon=True
+    )
+    thread.start()
+    
+    return jsonify({"task_id": task_id}), 202
+
 
 @app.route("/task/<task_id>", methods=["GET", "OPTIONS"])
 def get_task(task_id):
@@ -363,6 +364,31 @@ def get_task(task_id):
         elif task["status"] == "failed":
             return jsonify({"error": task["error"]}), 500
 
+    # This one is fast, no need for async
+    description = run_describe(request.files["image"])
+    return jsonify({"description": description}), 200
+
+
+@app.route("/api/task/<task_id>", methods=["GET"])
+def get_task(task_id):
+    """Poll for task status and retrieve result"""
+    with task_lock:
+        if task_id not in task_storage:
+            return jsonify({"error": "Task not found"}), 404
+        
+        task = task_storage[task_id]
+        
+        if task["status"] == "processing":
+            return jsonify({"status": "processing"}), 202
+        elif task["status"] == "completed":
+            return send_file(
+                BytesIO(task["result"]),
+                mimetype="image/png"
+            )
+        elif task["status"] == "failed":
+            return jsonify({"error": task["error"]}), 500
+
+
 def cleanup_old_tasks():
     """Periodically clean up old completed tasks from memory"""
     current_time = time.time()
@@ -373,7 +399,7 @@ def cleanup_old_tasks():
         ]
         for task_id in expired_tasks:
             del task_storage[task_id]
-            print(f"Cleaned up expired task: {task_id}")
+
 
 # Run cleanup every 5 minutes
 @app.before_request
@@ -385,6 +411,7 @@ def periodic_cleanup():
         cleanup_old_tasks()
         app._cleanup_last_run = time.time()
 
+
 if __name__ == '__main__':
-    print("Starting Flask server on http://localhost:8000")
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="0.0.0.0", port=8000)
+

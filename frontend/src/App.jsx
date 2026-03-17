@@ -245,6 +245,26 @@ export default function App() {
     }
   };
 
+  // Create AI hook; it can run only after canvasActions are available
+  const ai = useAiFeatures({
+    canvasActions,
+  });
+
+  const onAiTest = async () => {
+    setActiveTool("ai.inpaint");
+
+    if (!canvasActions) {
+      alert("Canvas not ready yet.");
+      return;
+    }
+
+    await ai.inpaintFromCanvas({
+      prompt: "remove the object, realistic background",
+      apply: true,
+      applyMode: "replace",
+    });
+  };
+
   return (
     <div className="flex h-screen w-screen flex-col bg-gradient-to-br from-gray-900 to-blue-800 text-white">
       <MenuBar
