@@ -5,9 +5,6 @@ from transformers import BlipProcessor, BlipForConditionalGeneration
 from rembg import remove
 import tempfile
 import io
-import numpy as np
-import os
-import traceback
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
@@ -319,4 +316,4 @@ def run_remove_background(image):
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     result.save(tmp.name)
 
-    return
+    return tmp.name

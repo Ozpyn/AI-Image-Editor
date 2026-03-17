@@ -245,10 +245,7 @@ export default function App() {
     }
   };
 
-  // Create AI hook; it can run only after canvasActions are available
-  const ai = useAiFeatures({
-    canvasActions,
-  });
+
 
   const onAiTest = async () => {
     setActiveTool("ai.inpaint");
