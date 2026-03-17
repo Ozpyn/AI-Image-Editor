@@ -224,7 +224,7 @@ export default function ToolBox({
                 </span>
               )}
             </button>
-          ))}
+        ))}
         </div>
 
         {/* Brush options panel */}
