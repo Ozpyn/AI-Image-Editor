@@ -297,37 +297,26 @@ def run_describe(image_file):
         traceback.print_exc()
         raise e
 
-def run_remove_background(image_file):
-    """Remove background from an image using rembg"""
-    try:
-        image = Image.open(image_file).convert("RGBA")
-        
-        # Convert image to bytes
-        img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format="PNG")
-        img_byte_arr.seek(0)
-        
-        # Remove background
-        output = remove(img_byte_arr.read())
-        
-        # Convert to PIL
-        result = Image.open(io.BytesIO(output))
-        
-        # Create a white background and composite
-        white_bg = Image.new("RGBA", result.size, (255, 255, 255, 255))
-        if result.mode == "RGBA":
-            # Composite with white background
-            result = Image.alpha_composite(white_bg, result)
-            result = result.convert("RGB")
-        else:
-            result = result.convert("RGB")
-        
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-        result.save(tmp.name, format="PNG")
-        
-        return tmp.name
-        
-    except Exception as e:
-        print(f"Error in run_remove_background: {str(e)}")
-        traceback.print_exc()
-        raise e
+    description = caption_processor.decode(
+        out[0],
+        skip_special_tokens=True
+    )
+
+    return description
+
+def run_remove_background(image):
+    image = Image.open(image).convert("RGBA")
+
+    # Convert image to bytes
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format="PNG")
+
+    # Remove background
+    output = remove(img_byte_arr.getvalue())
+
+    # Convert to PIL
+    result = Image.open(io.BytesIO(output))
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    result.save(tmp.name)
+
+    return
