@@ -102,6 +102,7 @@ export function useAiFeatures() {
     }
   };
 
+
   return { inpaint, outpaint, removeBackground, loading, error };
 }
 
