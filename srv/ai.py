@@ -3,6 +3,7 @@ from PIL import Image
 from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from rembg import remove
+from rembg import remove
 import tempfile
 import io
 
