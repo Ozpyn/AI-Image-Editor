@@ -46,11 +46,13 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     canvasElRef.current.style.display = "block";
 
     fabricRef.current = canvas;
+    window.canvas = canvas;
     setReady(true);
 
     return () => {
       canvas.dispose();
       fabricRef.current = null;
+      window.canvas = null;
       setReady(false);
     };
   }, []);

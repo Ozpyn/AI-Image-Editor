@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
 // For managing loading, errors, etc.
 export function useAiFeatures() {
   const [loading, setLoading] = useState(false);
@@ -11,7 +13,7 @@ export function useAiFeatures() {
     setError(null);
 
     try {
-      const response = await fetch("http://VIPER_IP:8000/inpaint", {
+      const response = await fetch(`${API_BASE_URL}/api/inpaint`, {
         method: "POST",
         body: createFormData(prompt, image, mask, options),
       });
@@ -37,7 +39,7 @@ export function useAiFeatures() {
     setError(null);
 
     try {
-      const response = await fetch("http://VIPER_IP:8000/outpaint", {
+      const response = await fetch(`${API_BASE_URL}/api/outpaint`, {
         method: "POST",
         body: createFormData(prompt, image, null, options),
       });
@@ -69,5 +71,38 @@ export function useAiFeatures() {
     return formData;
   };
 
-  return { inpaint, outpaint, loading, error };
+  // AI Action: Background Removal
+  const removeBackground = async (image) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", image);
+
+      const response = await fetch(`${API_BASE_URL}/api/removebg`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Background removal failed.");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      return url; // Returns the image URL with background removed
+
+    } catch (err) {
+      setError(err.message);
+      console.error("Background removal error:", err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { inpaint, outpaint, removeBackground, loading, error };
 }
+
+
