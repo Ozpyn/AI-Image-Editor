@@ -11,11 +11,14 @@ import {
   ChevronLeft,
   ChevronRight,
   VenetianMask,
+  VenetianMask,
 } from "lucide-react";
 
 const tools = [
   { key: "select", label: "Select", icon: MousePointer2 },
   { key: "crop", label: "Crop", icon: Crop },
+  { key: "brush", label: "Brush", icon: Brush },
+  { key: "mask", label: "Mask", icon: VenetianMask },
   { key: "brush", label: "Brush", icon: Brush },
   { key: "mask", label: "Mask", icon: VenetianMask },
   { key: "erase", label: "Erase", icon: Eraser },
@@ -36,36 +39,6 @@ export default function ToolBox({
   onBrushColorChange,
   onBrushSizeChange,
 }) {
-
-  const { inpaint, removeBackground, loading, error } = useAiFeatures();
-  
-  const handleRemoveBackground = async () => {
-  // Make sure you have access to the canvas (pass it as prop or get from parent)
-  if (!window.canvas) return alert("Canvas not initialized");
-
-  // Get the first image on the canvas
-  const img = window.canvas.getObjects().find((o) => o.type === "image");
-  if (!img) return alert("No image on canvas!");
-
-  // Convert Fabric image to Blob
-  const dataUrl = img.toDataURL({ format: "png" });
-  const res = await fetch(dataUrl);
-  const blob = await res.blob();
-
-  // Call the AI remove background function
-  const bgRemovedUrl = await removeBackground(blob);
-  if (!bgRemovedUrl) return;
-
-  // Replace the image in the canvas
-  const newImgObj = new Image();
-  newImgObj.src = bgRemovedUrl;
-  newImgObj.onload = () => {
-    const newFabricImg = new fabric.Image(newImgObj, { selectable: true });
-    window.canvas.clear();
-    window.canvas.add(newFabricImg);
-    window.canvas.requestRenderAll();
-  };
-};
 
   return (
     <aside
@@ -147,6 +120,53 @@ export default function ToolBox({
                 type="range"
                 min={1}
                 max={80}
+                value={brushSize}
+                onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
+                className="mt-2 w-full accent-white"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Mask options panel */}
+        {!collapsed && activeTool === "mask" && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="text-xs font-semibold text-gray-200">Mask Options</div>
+            <div className="mt-2 text-xs text-gray-400">
+              Draw white areas to mark regions for AI inpainting
+            </div>
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs text-gray-300">
+                <span>Brush Size</span>
+                <span>{brushSize}px</span>
+              </div>
+              <input
+                type="range"
+                min={10}
+                max={100}
+                value={brushSize}
+                onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
+                className="mt-2 w-full accent-white"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Erase options panel */}
+        {!collapsed && activeTool === "erase" && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="text-xs font-semibold text-gray-200">Eraser Options</div>
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs text-gray-300">
+                <span>Size</span>
+                <span>{brushSize}px</span>
+              </div>
+              <input
+                type="range"
+                min={10}
+                max={100}
                 value={brushSize}
                 onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
                 className="mt-2 w-full accent-white"
