@@ -40,6 +40,36 @@ export default function ToolBox({
   onBrushSizeChange,
 }) {
 
+  const { inpaint, removeBackground, loading, error } = useAiFeatures();
+  
+  const handleRemoveBackground = async () => {
+  // Make sure you have access to the canvas (pass it as prop or get from parent)
+  if (!window.canvas) return alert("Canvas not initialized");
+
+  // Get the first image on the canvas
+  const img = window.canvas.getObjects().find((o) => o.type === "image");
+  if (!img) return alert("No image on canvas!");
+
+  // Convert Fabric image to Blob
+  const dataUrl = img.toDataURL({ format: "png" });
+  const res = await fetch(dataUrl);
+  const blob = await res.blob();
+
+  // Call the AI remove background function
+  const bgRemovedUrl = await removeBackground(blob);
+  if (!bgRemovedUrl) return;
+
+  // Replace the image in the canvas
+  const newImgObj = new Image();
+  newImgObj.src = bgRemovedUrl;
+  newImgObj.onload = () => {
+    const newFabricImg = new fabric.Image(newImgObj, { selectable: true });
+    window.canvas.clear();
+    window.canvas.add(newFabricImg);
+    window.canvas.requestRenderAll();
+  };
+};
+
   return (
     <aside
       className={[
