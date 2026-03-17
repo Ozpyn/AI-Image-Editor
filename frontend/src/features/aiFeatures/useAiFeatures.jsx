@@ -106,6 +106,57 @@ export function useAiFeatures({
   apiBase = `${window.location.origin}/api`,
   canvasActions, // { exportAsPNGBlob, exportAsMaskBlob, applyBlobResult }
 } = {}) {
+/**
+ * Get dimensions of an image blob
+ */
+async function getSize(blob) {
+  if (!blob || !(blob instanceof Blob)) {
+    throw new Error("getSize: argument must be a Blob");
+  }
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: img.width, height: img.height });
+    };
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load image for size measurement"));
+    };
+    
+    img.src = url;
+  });
+}
+
+/**
+ * Download a blob as a file to the user's local machine
+ */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * AI hook (client-side)
+ * Requires canvas "actions" from useCanvas:
+ *  - exportAsPNGBlob(multiplier)
+ *  - exportAsMaskBlob(multiplier)
+ *  - applyBlobResult(blob, { mode })
+ */
+export function useAiFeatures({
+  apiBase = `${window.location.origin}/api`,
+  canvasActions, // { exportAsPNGBlob, exportAsMaskBlob, applyBlobResult }
+} = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
