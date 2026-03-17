@@ -34,11 +34,13 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     });
 
     fabricRef.current = canvas;
+    window.canvas = canvas;
     setReady(true);
 
     return () => {
       canvas.dispose();
       fabricRef.current = null;
+      window.canvas = null;
       setReady(false);
     };
   }, []);
