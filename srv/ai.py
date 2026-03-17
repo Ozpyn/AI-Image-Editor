@@ -4,6 +4,7 @@ from diffusers.utils import load_image
 from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
 from transformers import BlipProcessor, BlipForConditionalGeneration
 from rembg import remove
+from rembg import remove
 import tempfile
 import io
 
@@ -156,4 +157,4 @@ def run_remove_background(image):
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     result.save(tmp.name)
 
-    return tmp.name
+    return
