@@ -1,4 +1,3 @@
-import { useAiFeatures } from "../../features/aiFeatures/useAiFeatures";
 import {
   MousePointer2,
   Crop,
@@ -11,14 +10,16 @@ import {
   Sparkles,
   ChevronLeft,
   ChevronRight,
+  VenetianMask,
 } from "lucide-react";
 
 const tools = [
   { key: "select", label: "Select", icon: MousePointer2 },
   { key: "crop", label: "Crop", icon: Crop },
+  { key: "brush", label: "Brush", icon: Brush },
+  { key: "mask", label: "Mask", icon: VenetianMask },
   { key: "erase", label: "Erase", icon: Eraser },
   { key: "text", label: "Text", icon: Type },
-  { key: "brush", label: "Brush", icon: Brush },
   { key: "heal", label: "Heal", icon: Wand2 },
   { key: "cutout", label: "Cutout", icon: Scissors },
   { key: "adjust", label: "Adjust", icon: SlidersHorizontal },
@@ -30,13 +31,11 @@ export default function ToolBox({
   onToggle,
   activeTool,
   onToolSelect,
-  // brush props
   brushColor,
   brushSize,
   onBrushColorChange,
   onBrushSizeChange,
 }) {
-  const { inpaint } = useAiFeatures(); // (unused for now, fine)
 
   return (
     <aside
@@ -115,6 +114,53 @@ export default function ToolBox({
                 type="range"
                 min={1}
                 max={80}
+                value={brushSize}
+                onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
+                className="mt-2 w-full accent-white"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Mask options panel */}
+        {!collapsed && activeTool === "mask" && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="text-xs font-semibold text-gray-200">Mask Options</div>
+            <div className="mt-2 text-xs text-gray-400">
+              Draw white areas to mark regions for AI inpainting
+            </div>
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs text-gray-300">
+                <span>Brush Size</span>
+                <span>{brushSize}px</span>
+              </div>
+              <input
+                type="range"
+                min={10}
+                max={100}
+                value={brushSize}
+                onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
+                className="mt-2 w-full accent-white"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Erase options panel */}
+        {!collapsed && activeTool === "erase" && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="text-xs font-semibold text-gray-200">Eraser Options</div>
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-xs text-gray-300">
+                <span>Size</span>
+                <span>{brushSize}px</span>
+              </div>
+              <input
+                type="range"
+                min={10}
+                max={100}
                 value={brushSize}
                 onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
                 className="mt-2 w-full accent-white"
