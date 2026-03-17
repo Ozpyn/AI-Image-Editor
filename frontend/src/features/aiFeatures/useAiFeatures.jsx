@@ -287,9 +287,41 @@ export function useAiFeatures({
     [canvasActions, createFormData, fetchBlob]
   );
 
+  // AI Action: Background Removal
+  const removeBackground = async (image) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", image);
+
+      const response = await fetch(`${apiBase}/removebg`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Background removal failed.");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      return url; // Returns the image URL with background removed
+
+    } catch (err) {
+      setError(err.message);
+      console.error("Background removal error:", err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     inpaintFromCanvas,
     outpaintFromCanvas,
+    removeBackground,
     loading,
     error,
   };

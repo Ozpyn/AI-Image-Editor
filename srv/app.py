@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
-from ai import run_inpaint, run_outpaint, run_deblur, run_describe
 import json, os, threading, uuid, time, tempfile
 from io import BytesIO
+from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background
 
 app = Flask(
     __name__,
@@ -227,6 +227,16 @@ def periodic_cleanup():
         app._cleanup_last_run = time.time()
 
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=8000)
+@app.route("/api/removebg", methods=["POST"])
+def remove_background():
+    if "image" not in request.files:
+        return jsonify({"error": "image is required"}), 400
 
+    try:
+        output_path = run_remove_background(request.files["image"])
+        return send_file(output_path, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+	app.run(host="0.0.0.0", port=8000)

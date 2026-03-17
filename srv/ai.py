@@ -3,7 +3,9 @@ from PIL import Image
 from diffusers.utils import load_image
 from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
 from transformers import BlipProcessor, BlipForConditionalGeneration
+from rembg import remove
 import tempfile
+import io
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
@@ -138,3 +140,20 @@ def run_describe(image):
     )
 
     return description
+
+def run_remove_background(image):
+    image = Image.open(image).convert("RGBA")
+
+    # Convert image to bytes
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format="PNG")
+
+    # Remove background
+    output = remove(img_byte_arr.getvalue())
+
+    # Convert to PIL
+    result = Image.open(io.BytesIO(output))
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    result.save(tmp.name)
+
+    return tmp.name
