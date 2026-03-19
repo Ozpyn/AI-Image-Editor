@@ -1,9 +1,108 @@
-{/*Lets import our icons from lucide*/}
-import { FileImage, Download, Sparkles, Undo2, Redo2 } from "lucide-react";
+import { FileImage, Download, Sparkles, Undo2, Redo2, ChevronDown } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 
-export default function MenuBar({activeTool, onToolSelect, onAiTest}) {
+export default function MenuBar({ 
+  activeTool, 
+  onToolSelect, 
+  onAiRemove,
+  onAiInpaint,
+  onAiOutpaint,
+  onAiRemovebg,
+  onAiReplacebg,
+  aiLoading 
+}) {
+  const [isAiDropdownOpen, setIsAiDropdownOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [activeAiAction, setActiveAiAction] = useState(null);
+  const dropdownRef = useRef(null);
+  const buttonRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
+          buttonRef.current && !buttonRef.current.contains(event.target)) {
+        setIsAiDropdownOpen(false);
+        setActiveAiAction(null);
+        setAiPrompt("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleAiAction = (action, defaultPrompt) => {
+    const prompt = aiPrompt.trim() || defaultPrompt;
+    
+    switch(action) {
+      case 'remove':
+        onAiRemove(prompt);
+        break;
+      case 'inpaint':
+        onAiInpaint(prompt);
+        break;
+      case 'outpaint':
+        onAiOutpaint(prompt);
+        break;
+      case 'removebg':
+        onAiRemovebg();
+        break;
+      case 'replacebg':
+        onAiReplacebg(prompt);
+        break;
+      default:
+        break;
+    }
+    
+    setIsAiDropdownOpen(false);
+    setAiPrompt("");
+    setActiveAiAction(null);
+  };
+
+  const aiMenuItems = [
+    { 
+      id: 'remove', 
+      label: 'Remove Object', 
+      tooltip: 'Remove the object',
+      requiresPrompt: true,
+      defaultPrompt: 'remove the object, realistic background',
+      action: onAiRemove
+    },
+    { 
+      id: 'inpaint', 
+      label: 'Inpaint', 
+      tooltip: 'Type prompt or see the magic',
+      requiresPrompt: true,
+      defaultPrompt: 'fill with realistic content',
+      action: onAiInpaint
+    },
+    { 
+      id: 'outpaint', 
+      label: 'Extend Image', 
+      tooltip: 'Type prompt or see the magic',
+      requiresPrompt: true,
+      defaultPrompt: 'extend the image realistically',
+      action: onAiOutpaint
+    },
+    { 
+      id: 'removebg', 
+      label: 'Remove Background', 
+      tooltip: 'Remove bg',
+      requiresPrompt: false,
+      action: onAiRemovebg
+    },
+    { 
+      id: 'replacebg', 
+      label: 'Replace Background', 
+      tooltip: 'Type prompt or see the magic',
+      requiresPrompt: true,
+      defaultPrompt: 'replace with a beautiful background',
+      action: onAiReplacebg
+    },
+  ];
+
   return (
-    <header className="h-14 w-full border-b border-white/10 bg-panel/70 backdrop-blur supports-backdrop-filter:bg-panel/50">
+    <header className="h-14 w-full border-b border-white/10 bg-panel/70 backdrop-blur supports-backdrop-filter:bg-panel/50 relative" style={{ zIndex: 1000 }}>
       <div className="mx-auto flex h-full max-w-400 items-center justify-between px-3 md:px-4">
         {/* Left: App + Menus */}
         <div className="flex items-center gap-3">
@@ -12,17 +111,129 @@ export default function MenuBar({activeTool, onToolSelect, onAiTest}) {
             <span className="text-sm font-semibold tracking-wide">Big AI Photo Editor</span>
           </div>
 
-          <nav className="hidden  items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-1 md:flex">
             <MenuItem label="File" />
             <MenuItem label="Edit" />
             <MenuItem label="Image" />
-            <MenuItem label="AI Tools" badge="Beta" 
-              active = {activeTool ?.startsWith("ai.")}
-              //This is the proper way we will later implement by seting toolmode & using propertiesPanel
-              //but for a taste, let call Ai directly on this menu
-               //onClick={()=>onToolSelect("ai.inpaint")} 
-               onClick={onAiTest}
-               />
+            
+            {/* AI Tools Dropdown */}
+            <div className="relative" style={{ zIndex: 1001 }}>
+              <button
+                ref={buttonRef}
+                onClick={() => setIsAiDropdownOpen(!isAiDropdownOpen)}
+                className={[
+                  "flex items-center gap-1 rounded-lg px-3 py-2 text-sm",
+                  "hover:bg-white/10 transition-colors",
+                  activeTool?.startsWith("ai.") || isAiDropdownOpen 
+                    ? "bg-accent text-white" 
+                    : "text-gray-200"
+                ].join(" ")}
+                type="button"
+              >
+                <span>AI Tools</span>
+                <ChevronDown className={[
+                  "h-4 w-4 transition-transform",
+                  isAiDropdownOpen ? "rotate-180" : ""
+                ].join(" ")} />
+                <span className="ml-1 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300">
+                  Beta
+                </span>
+              </button>
+
+              {/* Dropdown Menu */}
+              {isAiDropdownOpen && (
+                <>
+                  {/* Backdrop to block canvas interactions */}
+                  <div 
+                    className="fixed inset-0" 
+                    style={{ zIndex: 999 }}
+                    onClick={() => setIsAiDropdownOpen(false)}
+                  />
+                  
+                  {/* Actual Dropdown */}
+                  <div 
+                    ref={dropdownRef}
+                    className="absolute left-0 top-full mt-1 w-80 rounded-lg border border-white/10 bg-panel/95 backdrop-blur shadow-xl"
+                    style={{ 
+                      zIndex: 1002,
+                      maxHeight: 'min(600px, calc(100vh - 100px))', 
+                      overflowY: 'auto'
+                    }}
+                  >
+                    {/* Prompt Input */}
+                    <div className="p-3 border-b border-white/10">
+                      <input
+                        type="text"
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder="Enter your prompt (optional)..."
+                        className="w-full rounded-lg bg-white/5 px-3 py-2 text-sm text-white placeholder-gray-400 border border-white/10 focus:outline-none focus:border-accent"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+
+                    {/* Menu Items */}
+                    <div className="p-2">
+                      {aiMenuItems.map((item) => (
+                        <div key={item.id} className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (item.requiresPrompt) {
+                                if (activeAiAction === item.id) {
+                                  // If already selected, execute the action
+                                  handleAiAction(item.id, item.defaultPrompt);
+                                } else {
+                                  // First click: show prompt and select
+                                  setActiveAiAction(item.id);
+                                }
+                              } else {
+                                // No prompt needed, execute immediately
+                                handleAiAction(item.id, item.defaultPrompt);
+                              }
+                            }}
+                            onMouseEnter={() => !item.requiresPrompt && setActiveAiAction(item.id)}
+                            onMouseLeave={() => !item.requiresPrompt && setActiveAiAction(null)}
+                            className={[
+                              "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                              "hover:bg-white/10",
+                              activeAiAction === item.id ? "bg-accent/20 border border-accent/50" : "",
+                              aiLoading ? "opacity-50 cursor-not-allowed" : ""
+                            ].join(" ")}
+                            disabled={aiLoading}
+                            title={item.tooltip}
+                            type="button"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-200">{item.label}</span>
+                              {item.requiresPrompt && (
+                                <span className="text-xs text-gray-400">
+                                  {activeAiAction === item.id ? 'Click again to confirm' : 'Click to select'}
+                                </span>
+                              )}
+                            </div>
+                            {activeAiAction === item.id && item.requiresPrompt && (
+                              <div className="mt-1 text-xs text-gray-400">
+                                Using: "{aiPrompt || item.defaultPrompt}"
+                              </div>
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Info Footer */}
+                    <div className="p-2 border-t border-white/10 bg-white/5">
+                      <p className="text-xs text-gray-400">
+                        {activeAiAction 
+                          ? "Click again to confirm with current prompt" 
+                          : "Select an AI tool to get started"}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </nav>
         </div>
 
@@ -38,21 +249,22 @@ export default function MenuBar({activeTool, onToolSelect, onAiTest}) {
             <Download className="h-4 w-4" />
             Export
           </button>
-
         </div>
       </div>
     </header>
   );
 }
 
-function MenuItem({ label, badge, onClick, active }) { //A menu item gives u onClick
+function MenuItem({ label, badge, onClick, active }) {
   return (
     <button
-    type="button"
+      type="button"
       onClick={onClick}
-      className={["relative rounded-lg px-3 py-2 text-sm text-gray-200 hover:bg-white/5",
-        active ? "bg-accent text-white" : "text-gray-200"].join(" ")}
-      >
+      className={[
+        "relative rounded-lg px-3 py-2 text-sm text-gray-200 hover:bg-white/5",
+        active ? "bg-accent text-white" : "text-gray-200"
+      ].join(" ")}
+    >
       {label}
       {badge ? (
         <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300">

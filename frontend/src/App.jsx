@@ -28,19 +28,138 @@ export default function App() {
     canvasActions,
   });
 
-  const onAiTest = async () => {
-    setActiveTool("ai.inpaint");
-
+  // AI Action Handlers
+  const handleAiRemove = async (prompt) => {
+    setActiveTool("ai.remove");
+    
     if (!canvasActions) {
       alert("Canvas not ready yet.");
       return;
     }
 
-    await ai.inpaintFromCanvas({
-      prompt: "remove the object, realistic background",
-      apply: true,
-      applyMode: "replace",
-    });
+    try {
+      // Use ai.inpaint (not inpaintFromCanvas)
+      await ai.inpaint({
+        prompt: prompt || "remove the object, realistic background",
+        apply: true,
+        applyMode: "replace",
+      });
+    } catch (error) {
+      console.error("AI Remove failed:", error);
+      alert("Failed to remove object: " + error.message);
+    }
+  };
+
+  const handleAiInpaint = async (prompt) => {
+    setActiveTool("ai.inpaint");
+    
+    if (!canvasActions) {
+      alert("Canvas not ready yet.");
+      return;
+    }
+
+    try {
+      // Use ai.inpaint
+      await ai.inpaint({
+        prompt: prompt || "fill with realistic content",
+        apply: true,
+        applyMode: "replace",
+      });
+    } catch (error) {
+      console.error("AI Inpaint failed:", error);
+      alert("Failed to inpaint: " + error.message);
+    }
+  };
+
+  const handleAiOutpaint = async (prompt) => {
+    setActiveTool("ai.outpaint");
+    
+    if (!canvasActions) {
+      alert("Canvas not ready yet.");
+      return;
+    }
+
+    try {
+      // Use ai.outpaint
+      await ai.outpaint({
+        prompt: prompt || "extend the image realistically",
+        exportMultiplier: 2,
+        apply: true,
+        applyMode: "replace",
+      });
+    } catch (error) {
+      console.error("AI Outpaint failed:", error);
+      alert("Failed to extend image: " + error.message);
+    }
+  };
+
+  const handleAiRemovebg = async () => {
+    setActiveTool("ai.removebg");
+    
+    if (!canvasActions) {
+      alert("Canvas not ready yet.");
+      return;
+    }
+
+    try {
+      // Get the current canvas image
+      const imageBlob = await canvasActions.exportAsPNGBlob(1, true);
+      
+      if (!imageBlob) {
+        throw new Error("No image to process");
+      }
+
+      const resultUrl = await ai.removeBackground(imageBlob);
+      
+      if (resultUrl && canvasActions?.applyBlobResult) {
+        // Fetch the blob from the URL
+        const response = await fetch(resultUrl);
+        const blob = await response.blob();
+        await canvasActions.applyBlobResult(blob, { mode: "replace" });
+      }
+    } catch (error) {
+      console.error("AI Remove Background failed:", error);
+      alert("Failed to remove background: " + error.message);
+    }
+  };
+
+  const handleAiReplacebg = async (prompt) => {
+    setActiveTool("ai.replacebg");
+    
+    if (!canvasActions) {
+      alert("Canvas not ready yet.");
+      return;
+    }
+
+    try {
+      // First remove background
+      const imageBlob = await canvasActions.exportAsPNGBlob(1, true);
+      
+      if (!imageBlob) {
+        throw new Error("No image to process");
+      }
+
+      const bgRemovedUrl = await ai.removeBackground(imageBlob);
+      
+      // Create a blob from the URL
+      const response = await fetch(bgRemovedUrl);
+      const blob = await response.blob();
+      
+      // Apply the background removed image
+      await canvasActions.applyBlobResult(blob, { mode: "replace" });
+      
+      // Then inpaint with new background prompt if needed
+      if (prompt) {
+        await ai.inpaint({
+          prompt: prompt,
+          apply: true,
+          applyMode: "replace",
+        });
+      }
+    } catch (error) {
+      console.error("AI Replace Background failed:", error);
+      alert("Failed to replace background: " + error.message);
+    }
   };
 
   return (
@@ -48,7 +167,12 @@ export default function App() {
       <MenuBar
         activeTool={activeTool}
         onToolSelect={handleToolSelect}
-        onAiTest={onAiTest}
+        onAiRemove={handleAiRemove}
+        onAiInpaint={handleAiInpaint}
+        onAiOutpaint={handleAiOutpaint}
+        onAiRemovebg={handleAiRemovebg}
+        onAiReplacebg={handleAiReplacebg}
+        aiLoading={ai.loading}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -61,6 +185,8 @@ export default function App() {
           brushSize={brushSize}
           onBrushColorChange={setBrushColor}
           onBrushSizeChange={setBrushSize}
+          canvas={canvasActions?.canvas} // Pass canvas if needed
+          canvasActions={canvasActions}
         />
 
         <CanvasArea
