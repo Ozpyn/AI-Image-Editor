@@ -4,8 +4,12 @@ import { Canvas } from "fabric";
 import { fabricImageFromURL, loadImageFromFile } from "./loadImage";
 import {
   clearCanvas,
+  clearMaskObjects,
   setToolMode,
   exportPNG,
+  exportPNGBlob,
+  exportMaskBlob,
+  applyResultBlob,
   fitObjectToCanvas,
   fitImageToView,
   zoomImage,
@@ -14,6 +18,7 @@ import {
   applyCropToImage,
   cancelCrop,
   applyImageAdjustments,
+  getOriginalSizeMultiplier,
 } from "./canvasUtils";
 
 function hasRealSize(canvas) {
@@ -60,12 +65,14 @@ export function useCanvas({ activeTool, brushColor, brushSize, healFlow = 0.45, 
     canvas.__zoomLevel = 1;
 
     fabricRef.current = canvas;
+    window.canvas = canvas;
     setReady(true);
     setZoomPercent(100);
 
     return () => {
       canvas.dispose();
       fabricRef.current = null;
+      window.canvas = null;
       setReady(false);
     };
   }, []);
@@ -87,6 +94,14 @@ export function useCanvas({ activeTool, brushColor, brushSize, healFlow = 0.45, 
     } else if (activeTool === "adjust") {
       // Adjustments should keep the canvas in a neutral/select state
       setToolMode(canvas, "select");
+    } else if (activeTool === "mask") {
+      setToolMode(canvas, "mask", {
+        size: brushSize ?? 40,
+      });
+    } else if (activeTool === "erase") {
+      setToolMode(canvas, "erase", {
+        size: brushSize ?? 40,
+      });
     } else {
       setToolMode(canvas, activeTool || "select");
     }
@@ -185,7 +200,13 @@ export function useCanvas({ activeTool, brushColor, brushSize, healFlow = 0.45, 
     setZoomPercent(100);
   }, []);
 
-  const exportAsPNG = useCallback((multiplier = 2) => {
+  const clearMask = useCallback(() => {
+    const c = fabricRef.current;
+    if (!c) return;
+    clearMaskObjects(c);
+  }, []);
+
+  const exportAsPNG = useCallback((multiplier = 1) => {
     const c = fabricRef.current;
     if (!c) return null;
     return exportPNG(c, multiplier);
@@ -213,6 +234,29 @@ export function useCanvas({ activeTool, brushColor, brushSize, healFlow = 0.45, 
     safeApplyAdjustments(c);
     c.requestRenderAll?.();
   }, [safeApplyAdjustments]);
+  const exportAsPNGBlob = useCallback(async (multiplier = 1, useOriginalSize = false) => {
+    const c = fabricRef.current;
+    if (!c) return null;
+    return await exportPNGBlob(c, multiplier, useOriginalSize);
+  }, []);
+
+  const exportAsMaskBlob = useCallback(async (multiplier = 1, useOriginalSize = false) => {
+    const c = fabricRef.current;
+    if (!c) return null;
+    return await exportMaskBlob(c, multiplier, useOriginalSize);
+  }, []);
+
+  const applyBlobResult = useCallback(async (blob, opts) => {
+    const c = fabricRef.current;
+    if (!c) return;
+    await applyResultBlob(c, blob, opts);
+  }, []);
+
+  const getExportMultiplier = useCallback(() => {
+    const c = fabricRef.current;
+    if (!c) return 1;
+    return getOriginalSizeMultiplier(c);
+  }, []);
 
   const applyCrop = useCallback(() => {
     const c = fabricRef.current;
@@ -247,6 +291,11 @@ export function useCanvas({ activeTool, brushColor, brushSize, healFlow = 0.45, 
       importFromURL,
       reset,
       exportAsPNG,
+      clearMask,
+      exportAsPNGBlob,
+      exportAsMaskBlob,
+      applyBlobResult,
+      getExportMultiplier,
       zoomIn,
       zoomOut,
       fitToView,
@@ -259,6 +308,11 @@ export function useCanvas({ activeTool, brushColor, brushSize, healFlow = 0.45, 
       importFromURL,
       reset,
       exportAsPNG,
+      clearMask,
+      exportAsPNGBlob,
+      exportAsMaskBlob,
+      applyBlobResult,
+      getExportMultiplier,
       zoomIn,
       zoomOut,
       fitToView,

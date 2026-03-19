@@ -1,7 +1,7 @@
-/* Lets import our icons from lucide */
-import { Download, Sparkles, Undo2, Redo2 } from "lucide-react";
+{/*Lets import our icons from lucide*/}
+import { FileImage, Download, Sparkles, Undo2, Redo2 } from "lucide-react";
 
-export default function MenuBar({ onExport }) {
+export default function MenuBar({activeTool, onToolSelect, onAiTest, onExport}) {
   return (
     <header className="h-14 w-full border-b border-white/10 bg-panel/70 backdrop-blur supports-backdrop-filter:bg-panel/50">
       <div className="mx-auto flex h-full max-w-400 items-center justify-between px-3 md:px-4">
@@ -16,7 +16,13 @@ export default function MenuBar({ onExport }) {
             <MenuItem label="File" />
             <MenuItem label="Edit" />
             <MenuItem label="Image" />
-            <MenuItem label="AI Tools" badge="Beta" />
+            <MenuItem label="AI Tools" badge="Beta" 
+              active = {activeTool ?.startsWith("ai.")}
+              //This is the proper way we will later implement by seting toolmode & using propertiesPanel
+              //but for a taste, let call Ai directly on this menu
+               //onClick={()=>onToolSelect("ai.inpaint")} 
+               onClick={onAiTest}
+               />
           </nav>
         </div>
 
@@ -41,7 +47,7 @@ export default function MenuBar({ onExport }) {
   );
 }
 
-function MenuItem({ label, badge }) {
+function MenuItem({ label, badge, onClick, active }) { //A menu item gives u onClick
   return (
     <button
       type="button"

@@ -1,7 +1,10 @@
+import { PencilBrush, Textbox, IText, Rect } from "fabric";
 import * as fabricNS from "fabric";
+import { fabricImageFromURL } from "./loadImage";
 
-const { PencilBrush, Textbox, IText, Rect } = fabricNS;
+// const { PencilBrush, Textbox, IText, Rect } = fabricNS;
 const Filters = fabricNS.filters || fabricNS.fabric?.filters;
+
 
 /**
  * Force 2D filter backend to avoid WebGL texture cropping/strips on some large images.
@@ -38,6 +41,7 @@ const toolModes = {
   select: enableSelectMode,
   crop: enableCropMode,
   erase: enableEraseMode,
+  mask: enableMaskMode,
   text: enableTextMode,
   brush: enableBrushMode,
   heal: enableHealMode,
@@ -55,6 +59,8 @@ export function setToolMode(canvas, mode = "select", options = {}) {
 }
 
 function resetCanvasState(canvas) {
+  if (!canvas) return;
+
   canvas.isDrawingMode = false;
   canvas.selection = false;
   canvas.defaultCursor = "default";
@@ -180,6 +186,7 @@ export function clearCanvas(canvas) {
   canvas.getObjects().forEach((o) => canvas.remove(o));
   canvas.__fitScale = 1;
   canvas.__zoomLevel = 1;
+  canvas.discardActiveObject();
   canvas.requestRenderAll();
 }
 
@@ -188,7 +195,7 @@ export function exportPNG(canvas, multiplier = 2) {
   return canvas.toDataURL({
     format: "png",
     multiplier,
-    enableRetinaScaling: true,
+    enableRetinaScaling: false,
   });
 }
 
@@ -207,6 +214,62 @@ export function setCanvasSize(canvas, width, height) {
 
   canvas.calcOffset?.();
   canvas.requestRenderAll?.();
+}
+
+export function clearMaskObjects(canvas) {
+  if (!canvas) return;
+  const maskObjects = canvas.getObjects().filter(obj => obj?.data?.role === "mask");
+  maskObjects.forEach((obj) => canvas.remove(obj));
+  canvas.requestRenderAll();
+}
+
+export function getBaseImageObject(canvas) {
+  if (!canvas) return null;
+  
+  const objects = canvas.getObjects();
+  for (const obj of objects) {
+    const isMask = obj?.data?.role === "mask";
+    const isPath = obj.type === "path";
+    if (!isMask && !isPath && obj.width && obj.height) {
+      return obj;
+    }
+  }
+  return null;
+}
+
+export function getOriginalImageDimensions(imageObj) {
+  if (!imageObj) return null;
+  
+  const element = imageObj._element || imageObj._originalElement;
+  if (element && element.naturalWidth && element.naturalHeight) {
+    return {
+      width: element.naturalWidth,
+      height: element.naturalHeight,
+    };
+  }
+  return {
+    width: imageObj.width,
+    height: imageObj.height,
+  };
+}
+
+export function getOriginalSizeMultiplier(canvas) {
+  const baseImage = getBaseImageObject(canvas);
+  if (!baseImage) return 1;
+
+  const originalDims = getOriginalImageDimensions(baseImage);
+  if (!originalDims) return 1;
+  
+  const originalW = originalDims.width;
+  const originalH = originalDims.height;
+  
+  const imageScaledW = baseImage.getScaledWidth();
+  const imageScaledH = baseImage.getScaledHeight();
+  
+  const multiplierW = originalW / imageScaledW;
+  const multiplierH = originalH / imageScaledH;
+  
+  return (multiplierW + multiplierH) / 2;
 }
 
 /* -------------------------- Image adjustment utils ------------------------- */
@@ -233,7 +296,6 @@ export function applyImageAdjustments(canvas, adjustments = {}) {
   canvas.__adjustments = { brightness, contrast, saturation };
 
   img.objectCaching = false;
-  img.set?.({ objectCaching: false });
   img.set?.("dirty", true);
 
   const nextFilters = [];
@@ -242,24 +304,11 @@ export function applyImageAdjustments(canvas, adjustments = {}) {
   if (Math.abs(saturation) > 1e-6) nextFilters.push(new Filters.Saturation({ saturation }));
 
   img.filters = nextFilters;
+  img.applyFilters?.();
 
-  const after = () => {
-    img.setCoords?.();
-    canvas.setActiveObject?.(img);
-    canvas.requestRenderAll?.();
-  };
-
-  try {
-    if (typeof img.applyFilters === "function" && img.applyFilters.length >= 1) {
-      img.applyFilters(after);
-    } else {
-      img.applyFilters?.();
-      after();
-    }
-  } catch {
-    img.applyFilters?.();
-    after();
-  }
+  img.setCoords?.();
+  canvas.setActiveObject?.(img);
+  canvas.requestRenderAll?.();
 }
 
 /* ------------------------------ Heal helpers ------------------------------ */
@@ -801,6 +850,13 @@ export function applyCropToImage(canvas) {
   const tl = util.transformPoint(new Point(rect.left, rect.top), invImg);
   const br = util.transformPoint(new Point(rect.left + rect.width, rect.top + rect.height), invImg);
 
+  const originOffset = (origin, size) => {
+    if (origin === "left" || origin === "top") return 0;
+    if (origin === "center") return size / 2;
+    if (origin === "right" || origin === "bottom") return size;
+    return 0;
+  };
+
   const ox = originOffset(img.originX, img.width);
   const oy = originOffset(img.originY, img.height);
 
@@ -871,4 +927,328 @@ function removeCropArtifacts(canvas) {
 
   canvas.__cropShade = null;
   canvas.__cropRect = null;
+}
+
+/* =========================================================
+   Mask mode (draws white strokes for AI inpainting)
+   Creates paths tagged with data.role = "mask"
+========================================================= */
+
+function enableMaskMode(canvas, options = {}) {
+  const { size = 40, decimate = 0.4 } = options;
+
+  canvas.selection = false;
+  canvas.discardActiveObject();
+  canvas.isDrawingMode = true;
+  canvas.defaultCursor = "crosshair";
+
+  const maskBrush = new PencilBrush(canvas);
+  maskBrush.color = "rgba(255, 255, 255, 0.6)";
+  maskBrush.width = size;
+  maskBrush.decimate = decimate;
+  canvas.freeDrawingBrush = maskBrush;
+
+  canvas.off("path:created");
+  canvas.on("path:created", (e) => {
+    const path = e?.path;
+    if (!path) return;
+
+    path.set({
+      selectable: false,
+      evented: false,
+      stroke: "rgba(255, 255, 255, 0.6)",
+      strokeWidth: size,
+    });
+    
+    path.data = { role: "mask" };
+    canvas.requestRenderAll();
+  });
+
+  canvas.requestRenderAll();
+}
+
+// function enableTextMode(canvas, options = {}) {
+//   const {
+//     fill = "#ffffff",
+//     fontSize = 36,
+//     fontFamily = "Inter, system-ui, sans-serif",
+//   } = options;
+
+//   canvas.selection = false;
+//   canvas.defaultCursor = "text";
+
+//   canvas.on("mouse:down", (opt) => {
+//     const p = canvas.getScenePoint(opt.e);
+
+//     const tb = new Textbox("Type here", {
+//       left: p.x,
+//       top: p.y,
+//       fill,
+//       fontSize,
+//       fontFamily,
+//       editable: true,
+//       selectable: true,
+//       evented: true,
+//       originX: "left",
+//       originY: "top",
+//     });
+
+//     canvas.add(tb);
+//     canvas.setActiveObject(tb);
+//     tb.enterEditing();
+//     tb.selectAll();
+
+//     canvas.requestRenderAll();
+//   });
+// }
+
+
+
+/* =========================================================
+   AI bridge utilities (no AI tool logic here)
+========================================================= */
+
+function dataURLToBlob(dataURL) {
+  const [header, base64] = dataURL.split(",");
+  const mime = header.match(/data:(.*?);base64/)?.[1] || "image/png";
+  const bin = atob(base64);
+  const len = bin.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+export async function exportPNGBlob(canvas, multiplier = 1, useOriginalSize = false) {
+  if (!canvas) return null;
+  
+  if (useOriginalSize) {
+    return await exportImageAtOriginalSize(canvas);
+  }
+  
+  const dataURL = exportPNG(canvas, multiplier);
+  return dataURL ? dataURLToBlob(dataURL) : null;
+}
+
+async function exportImageAtOriginalSize(canvas) {
+  const baseImage = getBaseImageObject(canvas);
+  if (!baseImage) {
+    console.warn("No base image found, falling back to canvas export");
+    return await exportPNGBlob(canvas, 1, false);
+  }
+  
+  const originalDims = getOriginalImageDimensions(baseImage);
+  if (!originalDims) {
+    console.warn("Could not get original dimensions, falling back");
+    return await exportPNGBlob(canvas, 1, false);
+  }
+  
+  const { width: origW, height: origH } = originalDims;
+  const element = baseImage._element || baseImage._originalElement;
+
+  if (!element) {
+    console.warn("Base image element missing, falling back to object.toDataURL");
+    const fallbackDataURL = baseImage.toDataURL({
+      format: "png",
+      quality: 1,
+      multiplier: 1,
+      enableRetinaScaling: false,
+      width: origW,
+      height: origH,
+    });
+    return fallbackDataURL ? dataURLToBlob(fallbackDataURL) : null;
+  }
+
+  const out = document.createElement("canvas");
+  out.width = origW;
+  out.height = origH;
+  const ctx = out.getContext("2d");
+  if (!ctx) return null;
+  ctx.drawImage(element, 0, 0, origW, origH);
+
+  const dataURL = out.toDataURL("image/png");
+  return dataURL ? dataURLToBlob(dataURL) : null;
+}
+
+export async function exportMaskBlob(canvas, multiplier = 1, useOriginalSize = false) {
+  if (!canvas) return null;
+
+  if (useOriginalSize) {
+    return await exportMaskAtOriginalSize(canvas);
+  }
+
+  const originalBg = canvas.backgroundColor;
+  const originals = [];
+  let maskObjectCount = 0;
+
+  canvas.getObjects().forEach((obj) => {
+    const isMask = obj?.data?.role === "mask";
+    if (isMask) maskObjectCount++;
+    
+    originals.push({
+      obj,
+      visible: obj.visible,
+      opacity: obj.opacity,
+      stroke: obj.stroke,
+      strokeWidth: obj.strokeWidth,
+      fill: obj.fill,
+      gco: obj.globalCompositeOperation,
+    });
+
+    if (!isMask) {
+      obj.visible = false;
+    } else {
+      obj.visible = true;
+      obj.opacity = 1;
+      obj.stroke = "white";
+      obj.strokeWidth = obj.strokeWidth || 1;
+      obj.fill = null;
+      obj.globalCompositeOperation = "source-over";
+    }
+  });
+  
+  if (maskObjectCount === 0) {
+    console.warn("No mask objects found! (objects with data.role === 'mask')");
+  }
+
+  canvas.backgroundColor = "black";
+  canvas.requestRenderAll();
+
+  try {
+    const dataURL = canvas.toDataURL({
+      format: "png",
+      multiplier,
+      enableRetinaScaling: false,
+    });
+    return dataURL ? dataURLToBlob(dataURL) : null;
+  } finally {
+    originals.forEach(({ obj, visible, opacity, stroke, strokeWidth, fill, gco }) => {
+      obj.visible = visible;
+      obj.opacity = opacity;
+      obj.stroke = stroke;
+      obj.strokeWidth = strokeWidth;
+      obj.fill = fill;
+      obj.globalCompositeOperation = gco;
+    });
+
+    canvas.backgroundColor = originalBg;
+    canvas.requestRenderAll();
+  }
+}
+
+async function exportMaskAtOriginalSize(canvas) {
+  if (!canvas) return null;
+  
+  const baseImage = getBaseImageObject(canvas);
+  if (!baseImage) {
+    console.warn("No base image found for mask export");
+    return await exportMaskBlob(canvas, 1, false);
+  }
+  
+  const originalDims = getOriginalImageDimensions(baseImage);
+  if (!originalDims) {
+    console.warn("Could not get original dimensions for mask");
+    return await exportMaskBlob(canvas, 1, false);
+  }
+  
+  const { width: origW, height: origH } = originalDims;
+  const imageBounds = baseImage.getBoundingRect();
+  const boundsW = Math.max(1, imageBounds.width);
+  const boundsH = Math.max(1, imageBounds.height);
+  const multiplierW = origW / boundsW;
+  const multiplierH = origH / boundsH;
+  const multiplier = (multiplierW + multiplierH) / 2;
+  
+  const originalBg = canvas.backgroundColor;
+  const originals = [];
+  let maskObjectCount = 0;
+  
+  canvas.getObjects().forEach((obj) => {
+    const isMask = obj?.data?.role === "mask";
+    if (isMask) maskObjectCount++;
+    
+    originals.push({
+      obj,
+      visible: obj.visible,
+      opacity: obj.opacity,
+      stroke: obj.stroke,
+      strokeWidth: obj.strokeWidth,
+      fill: obj.fill,
+      gco: obj.globalCompositeOperation,
+    });
+    
+    if (!isMask) {
+      obj.visible = false;
+    } else {
+      obj.visible = true;
+      obj.opacity = 1;
+      obj.stroke = "white";
+      obj.strokeWidth = obj.strokeWidth || 1;
+      obj.fill = null;
+      obj.globalCompositeOperation = "source-over";
+    }
+  });
+  
+  console.log("Mask objects found:", maskObjectCount);
+  
+  canvas.backgroundColor = "black";
+  canvas.requestRenderAll();
+  
+  try {
+    const dataURL = canvas.toDataURL({
+      format: "png",
+      left: imageBounds.left,
+      top: imageBounds.top,
+      width: boundsW,
+      height: boundsH,
+      multiplier,
+      enableRetinaScaling: false,
+    });
+
+    return dataURL ? dataURLToBlob(dataURL) : null;
+  } finally {
+    originals.forEach(({ obj, visible, opacity, stroke, strokeWidth, fill, gco }) => {
+      obj.visible = visible;
+      obj.opacity = opacity;
+      obj.stroke = stroke;
+      obj.strokeWidth = strokeWidth;
+      obj.fill = fill;
+      obj.globalCompositeOperation = gco;
+    });
+    
+    canvas.backgroundColor = originalBg;
+    canvas.requestRenderAll();
+  }
+}
+
+export async function applyResultBlob(
+  canvas,
+  blob,
+  { mode = "replace", padding = 32 } = {}
+) {
+  if (!canvas || !blob) return;
+
+  const url = URL.createObjectURL(blob);
+
+  try {
+    const img = await fabricImageFromURL(url, { selectable: true, evented: true });
+
+    if (mode === "replace") {
+      clearCanvas(canvas);
+      canvas.add(img);
+      fitObjectToCanvas(canvas, img, padding);
+      canvas.setActiveObject(img);
+    } else if (mode === "newLayer") {
+      canvas.add(img);
+      fitObjectToCanvas(canvas, img, padding);
+      canvas.setActiveObject(img);
+    } else {
+      canvas.add(img);
+      fitObjectToCanvas(canvas, img, padding);
+      canvas.setActiveObject(img);
+    }
+
+    canvas.requestRenderAll();
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }

@@ -28,9 +28,15 @@ if [[ "$OS" == *"MINGW"* || "$OS" == *"MSYS"* || "$OS" == *"CYGWIN"* || "$OS" ==
     if where nvidia-smi > /dev/null 2>&1; then
         echo "Windows NVIDIA GPU detected — installing CUDA build"
         pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+
+        echo "Installing rembg with GPU support (CUDA)"
+        pip install "rembg[gpu]"
     else
         echo "Windows CPU-only detected — installing CPU build"
         pip install torch torchvision
+
+        echo "Installing rembg with CPU support"
+        pip install "rembg[cpu]"
     fi
 
 # -----------------------------
@@ -43,6 +49,9 @@ elif [ "$OS" = "Linux" ]; then
         echo "Linux NVIDIA GPU detected — installing CUDA build"
         pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
 
+        echo "Installing rembg with GPU support (CUDA)"
+        pip install "rembg[gpu]"
+
     # AMD ROCm
     elif command -v lspci >/dev/null 2>&1 && \
          lspci | grep -Ei "amd|advanced micro devices" >/dev/null 2>&1 && \
@@ -50,9 +59,15 @@ elif [ "$OS" = "Linux" ]; then
         echo "Linux AMD ROCm detected — installing ROCm build"
         pip install torch torchvision --index-url https://download.pytorch.org/whl/rocm7.1
 
+        echo "Installing rembg with ROCm support"
+        pip install "rembg[rocm]"
+
     else
         echo "Linux CPU-only detected — installing CPU build"
         pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+        echo "Installing rembg with CPU support"
+        pip install "rembg[cpu]"
     fi
 
 # -----------------------------
@@ -62,12 +77,18 @@ elif [ "$OS" = "Darwin" ] && [ "$ARCH" = "arm64" ]; then
     echo "Apple Silicon detected — installing MPS-compatible build"
     pip install torch torchvision
 
+    echo "Installing rembg with CPU support"
+    pip install "rembg[cpu]"
+
 else
     echo "Unknown platform — installing CPU build"
     pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+    echo "Installing rembg with CPU support"
+    pip install "rembg[cpu]"
 fi
 
 pip install -r requirements.txt &&
 echo "Requirements Installed" &&
-echo "Running App"
-nohup python3 app.py > app.log 2>&1 &'
+echo "Running App" &&
+python3 app.py'

@@ -3,7 +3,9 @@ from PIL import Image
 from diffusers.utils import load_image
 from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
 from transformers import BlipProcessor, BlipForConditionalGeneration
+from rembg import remove
 import tempfile
+import io
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
@@ -27,6 +29,18 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
     torch_dtype=DTYPE
 ).to(DEVICE)
 
+deblur_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+    "runwayml/stable-diffusion-v1-5",
+    torch_dtype=torch.float16
+).to(DEVICE)
+
+caption_processor = BlipProcessor.from_pretrained(
+    "Salesforce/blip-image-captioning-base"
+)
+caption_model = BlipForConditionalGeneration.from_pretrained(
+    "Salesforce/blip-image-captioning-base"
+).to(DEVICE)
+
 # inpainting_pipe.enable_xformers_memory_efficient_attention()
 
 # These might be changed later to implement Redis, which would allow us to queue jobs.
@@ -35,6 +49,7 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
 def run_inpaint(image, mask, prompt=None):
     image = Image.open(image).convert("RGB")
     mask = Image.open(mask).convert("RGB")
+    original_size = image.size  # Store original dimensions (width, height)
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
 
@@ -47,9 +62,12 @@ def run_inpaint(image, mask, prompt=None):
             num_inference_steps=40,
         )
     
+    # Resize output back to original image size
+    output_image = result.images[0].resize(original_size, Image.Resampling.LANCZOS)
+    
     # Save to a temporary file
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-    result.images[0].save(tmp.name)
+    output_image.save(tmp.name)
     return tmp.name
 
 def run_outpaint(image, directions, prompt=None):
@@ -76,6 +94,7 @@ def run_outpaint(image, directions, prompt=None):
 
 def run_deblur(image, prompt=None):
     image = Image.open(image).convert("RGB")
+    original_size = image.size  # Store original dimensions (width, height)
 
     # Auto-generate caption if no prompt provided
     if not prompt:
@@ -96,8 +115,11 @@ def run_deblur(image, prompt=None):
             num_inference_steps=40,
         )
 
+    # Resize output back to original image size
+    output_image = result.images[0].resize(original_size, Image.Resampling.LANCZOS)
+    
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-    result.images[0].save(tmp.name)
+    output_image.save(tmp.name)
 
     return tmp.name
 
@@ -118,3 +140,20 @@ def run_describe(image):
     )
 
     return description
+
+def run_remove_background(image):
+    image = Image.open(image).convert("RGBA")
+
+    # Convert image to bytes
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format="PNG")
+
+    # Remove background
+    output = remove(img_byte_arr.getvalue())
+
+    # Convert to PIL
+    result = Image.open(io.BytesIO(output))
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    result.save(tmp.name)
+
+    return tmp.name
