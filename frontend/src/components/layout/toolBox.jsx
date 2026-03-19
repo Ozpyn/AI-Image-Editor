@@ -11,7 +11,6 @@ import {
   ChevronLeft,
   ChevronRight,
   VenetianMask,
-  VenetianMask,
 } from "lucide-react";
 import { useAiFeatures } from "../../features/aiFeatures/useAiFeatures";
 import * as fabric from "fabric";
@@ -20,8 +19,6 @@ import { useState, useEffect } from "react";
 const tools = [
   { key: "select", label: "Select", icon: MousePointer2 },
   { key: "crop", label: "Crop", icon: Crop },
-  { key: "brush", label: "Brush", icon: Brush },
-  { key: "mask", label: "Mask", icon: VenetianMask },
   { key: "brush", label: "Brush", icon: Brush },
   { key: "mask", label: "Mask", icon: VenetianMask },
   { key: "erase", label: "Erase", icon: Eraser },
@@ -227,7 +224,7 @@ export default function ToolBox({
                 </span>
               )}
             </button>
-        ))}
+          ))}
         </div>
 
         {/* Brush options panel */}
@@ -309,49 +306,28 @@ export default function ToolBox({
           </div>
         )}
 
-        {/* Mask options panel */}
-        {!collapsed && activeTool === "mask" && (
+        {/* AI Options panel */}
+        {!collapsed && activeTool === "ai" && (
           <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
-            <div className="text-xs font-semibold text-gray-200">Mask Options</div>
+            <div className="text-xs font-semibold text-gray-200">AI Options</div>
+            
+            {/* Show errors */}
+            {(error || localError) && (
+              <div className="mt-2 text-xs text-red-400 bg-red-400/10 p-2 rounded">
+                Error: {error || localError}
+              </div>
+            )}
+            
+            <button
+              onClick={handleRemoveBackground}
+              disabled={loading}
+              className="mt-2 w-full rounded-lg bg-accent px-3 py-2 text-xs text-white hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? "Processing..." : "Remove Background"}
+            </button>
+            
             <div className="mt-2 text-xs text-gray-400">
-              Draw white areas to mark regions for AI inpainting
-            </div>
-
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-gray-300">
-                <span>Brush Size</span>
-                <span>{brushSize}px</span>
-              </div>
-              <input
-                type="range"
-                min={10}
-                max={100}
-                value={brushSize}
-                onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
-                className="mt-2 w-full accent-white"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Erase options panel */}
-        {!collapsed && activeTool === "erase" && (
-          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
-            <div className="text-xs font-semibold text-gray-200">Eraser Options</div>
-
-            <div className="mt-3">
-              <div className="flex items-center justify-between text-xs text-gray-300">
-                <span>Size</span>
-                <span>{brushSize}px</span>
-              </div>
-              <input
-                type="range"
-                min={10}
-                max={100}
-                value={brushSize}
-                onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
-                className="mt-2 w-full accent-white"
-              />
+              Removes the background from the selected image using AI
             </div>
           </div>
         )}

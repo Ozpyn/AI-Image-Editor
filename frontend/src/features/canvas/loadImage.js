@@ -1,5 +1,8 @@
 import { Image as FabricImage } from "fabric";
 
+/**
+ * Load an image from a File object and return a data URL
+ */
 export function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
     if (!file) return reject(new Error("No file provided"));
