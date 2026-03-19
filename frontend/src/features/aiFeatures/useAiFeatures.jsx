@@ -1,26 +1,90 @@
 import { useState, useCallback, useRef } from "react";
 
-// Make sure this points to your backend server
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
+/**
+ * Get dimensions of an image blob
+ */
+async function getSize(blob) {
+  if (!blob || !(blob instanceof Blob)) {
+    throw new Error("getSize: argument must be a Blob");
+  }
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: img.width, height: img.height });
+    };
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load image for size measurement"));
+    };
+    
+    img.src = url;
+  });
+}
+
+/**
+ * Download a blob as a file to the user's local machine
+ */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * AI hook (client-side)
+ * Requires canvas "actions" from useCanvas:
+ *  - exportAsPNGBlob(multiplier)
+ *  - exportAsMaskBlob(multiplier)
+ *  - applyBlobResult(blob, { mode })
+ */
 export function useAiFeatures({
-  apiBase = API_BASE_URL, // Use the constant, not window.location
-  canvasActions,
+  apiBase = API_BASE_URL,
+  canvasActions, // { exportAsPNGBlob, exportAsMaskBlob, applyBlobResult }
 } = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState("");
   const lastUrlRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
-  // Helper function to poll for task results
+  // Helper function to poll for task results with progress
   const pollTaskResult = useCallback(async (taskId) => {
-    const maxAttempts = 30;
-    const interval = 2000; // 2 seconds
+    const maxAttempts = 60;
+    const interval = 1000; // 1 second
     
     for (let i = 0; i < maxAttempts; i++) {
+      // Check if aborted
+      if (abortControllerRef.current?.signal.aborted) {
+        throw new Error("Operation cancelled");
+      }
+
+      // Update progress based on attempt number
+      const progressValue = Math.min(20 + (i * 1.5), 90);
+      setProgress(progressValue);
+      setStatus(`Processing... ${Math.round(progressValue)}%`);
+      
       const response = await fetch(`${API_BASE_URL}/task/${taskId}`);
       
       if (response.status === 200) {
-        return await response.blob();
+        setProgress(95);
+        setStatus("Finalizing...");
+        const blob = await response.blob();
+        setProgress(100);
+        setStatus("Complete!");
+        return blob;
       }
       
       if (response.status !== 202) {
@@ -34,68 +98,149 @@ export function useAiFeatures({
     throw new Error("Task timeout");
   }, []);
 
-  // Helper: creates formData for both inpainting and outpainting
-  const createFormData = useCallback((prompt, image, mask, { guidance_scale = 6.5, steps = 30, seed = -1 }) => {
+  // Helper: creates formData for inpainting
+  const createFormData = useCallback((prompt, image, mask, { 
+    guidance_scale = 7.5, 
+    steps = 40, 
+    seed = -1 
+  } = {}) => {
     const formData = new FormData();
-    formData.append("prompt", prompt);
+    formData.append("prompt", prompt || "");
     formData.append("image", image);
     if (mask) formData.append("mask", mask);
-    formData.append("guidance_scale", guidance_scale);
-    formData.append("steps", steps);
-    formData.append("seed", seed);
+    formData.append("guidance_scale", guidance_scale.toString());
+    formData.append("steps", steps.toString());
+    formData.append("seed", seed.toString());
+    return formData;
+  }, []);
+
+  // Helper: creates formData for outpainting
+  const createOutpaintFormData = useCallback((prompt, image, directions, {
+    guidance_scale = 7.5,
+    steps = 40,
+    seed = -1
+  } = {}) => {
+    const formData = new FormData();
+    formData.append("prompt", prompt || "");
+    formData.append("image", image);
+    formData.append("left", directions.left.toString());
+    formData.append("right", directions.right.toString());
+    formData.append("top", directions.top.toString());
+    formData.append("bottom", directions.bottom.toString());
+    formData.append("guidance_scale", guidance_scale.toString());
+    formData.append("steps", steps.toString());
+    formData.append("seed", seed.toString());
     return formData;
   }, []);
 
   // Helper function to fetch blob with task polling support
   const fetchBlob = useCallback(async (endpoint, formData) => {
+    // Create abort controller for this request
+    abortControllerRef.current = new AbortController();
+    
     const url = `${API_BASE_URL}${endpoint}`;
     console.log("Fetching from:", url);
     
-    const response = await fetch(url, {
-      method: "POST",
-      body: formData,
-    });
+    setProgress(10);
+    setStatus("Sending request...");
+    
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        body: formData,
+        signal: abortControllerRef.current.signal,
+      });
 
-    if (!response.ok) {
-      let detail = "";
-      try {
-        detail = await response.text();
-        console.error("Error response:", detail.substring(0, 200));
-      } catch {
-        /* ignore */
+      if (!response.ok) {
+        let detail = "";
+        try {
+          detail = await response.text();
+          console.error("Error response:", detail.substring(0, 200));
+        } catch {
+          /* ignore */
+        }
+        throw new Error(detail || `Request failed: ${response.status}`);
       }
-      throw new Error(detail || `Request failed: ${response.status}`);
-    }
 
-    // Check if we got a task ID (202 Accepted response)
-    if (response.status === 202) {
-      const data = await response.json();
-      if (data.task_id) {
-        // Poll for the actual result
-        return await pollTaskResult(data.task_id);
+      setProgress(20);
+      setStatus("Request sent, waiting for processing...");
+
+      // Check if we got a task ID (202 Accepted response)
+      if (response.status === 202) {
+        const data = await response.json();
+        if (data.task_id) {
+          // Poll for the actual result
+          return await pollTaskResult(data.task_id);
+        }
       }
-    }
 
-    const blob = await response.blob();
-    console.log("Received blob:", blob.type, blob.size);
-    return blob;
+      setProgress(100);
+      setStatus("Complete!");
+      const blob = await response.blob();
+      console.log("Received blob:", blob.type, blob.size);
+      return blob;
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        throw new Error("Operation cancelled");
+      }
+      throw err;
+    } finally {
+      abortControllerRef.current = null;
+    }
   }, [pollTaskResult]);
 
   /**
-   * Inpaint using current Fabric canvas state
+   * Resize a blob to match target dimensions
+   */
+  const resizeBlob = useCallback(async (blob, targetWidth, targetHeight) => {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        
+        // Create canvas for resizing
+        const canvas = document.createElement('canvas');
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+        
+        canvas.toBlob((resizedBlob) => {
+          resolve(resizedBlob);
+        }, 'image/png');
+      };
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Failed to load image for resizing"));
+      };
+      
+      img.src = url;
+    });
+  }, []);
+
+  /**
+   * Inpaint using current Fabric canvas state:
+   * - exports image blob and mask blob
+   * - calls /inpaint
+   * - optionally applies to canvas
    */
   const inpaint = useCallback(
     async ({
       prompt,
-      guidance_scale,
-      steps,
-      seed,
+      guidance_scale = 7.5,
+      steps = 40,
+      seed = -1,
       exportMultiplier = 1,
       useOriginalSize = true,
       apply = true,
-      applyMode = "replace",
+      applyMode = "inpaint", // "inpaint" | "replace" | "newLayer"
+      autoResizeMask = true, // Automatically resize mask to match image
     } = {}) => { 
-      console.log("Inpaint called with:", { exportMultiplier, useOriginalSize });
+      console.log("Inpaint called with:", { exportMultiplier, useOriginalSize, applyMode });
       
       if (!canvasActions?.exportAsPNGBlob) {
         throw new Error("useAiFeatures: canvasActions.exportAsPNGBlob is missing");
@@ -110,6 +255,9 @@ export function useAiFeatures({
       setStatus("Starting inpainting...");
 
       try {
+        setProgress(5);
+        setStatus("Exporting canvas image...");
+        
         const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier, useOriginalSize);
         
         setProgress(10);
@@ -120,7 +268,9 @@ export function useAiFeatures({
         if (!imageBlob) throw new Error("Failed to export canvas image");
         if (!maskBlob) throw new Error("Failed to export canvas mask");
 
-        // Get dimensions
+        setProgress(15);
+        setStatus("Validating dimensions...");
+
         const imageSize = await getSize(imageBlob);
         const maskSize = await getSize(maskBlob);
         
@@ -130,8 +280,27 @@ export function useAiFeatures({
         // Check for dimension mismatch and resize if needed
         if (imageSize.width !== maskSize.width || imageSize.height !== maskSize.height) {
           console.error("DIMENSION MISMATCH!", { imageSize, maskSize });
-          // You might want to resize the mask here to match the image
+          
+          if (autoResizeMask) {
+            setStatus("Resizing mask to match image dimensions...");
+            maskBlob = await resizeBlob(maskBlob, imageSize.width, imageSize.height);
+            
+            // Verify resize worked
+            const newMaskSize = await getSize(maskBlob);
+            console.log("Mask resized to:", newMaskSize);
+            
+            if (newMaskSize.width !== imageSize.width || newMaskSize.height !== imageSize.height) {
+              throw new Error("Failed to resize mask to match image dimensions");
+            }
+          } else {
+            throw new Error(`Dimension mismatch: Image ${imageSize.width}x${imageSize.height}, Mask ${maskSize.width}x${maskSize.height}`);
+          }
+        } else {
+          console.log("Dimensions match!");
         }
+
+        setProgress(25);
+        setStatus("Preparing AI request...");
 
         const fd = createFormData(prompt, imageBlob, maskBlob, {
           guidance_scale,
@@ -174,15 +343,22 @@ export function useAiFeatures({
   );
 
   /**
-   * Outpaint using current Fabric canvas state
+   * Outpaint using current Fabric canvas state:
+   * - exports image blob
+   * - calls /outpaint
+   * - optionally applies to canvas
    */
   const outpaint = useCallback(
     async ({
       prompt,
-      guidance_scale,
-      steps,
-      seed,
-      exportMultiplier = 2,
+      guidance_scale = 7.5,
+      steps = 40,
+      seed = -1,
+      exportMultiplier = 1,
+      left = 100,
+      right = 100,
+      top = 100,
+      bottom = 100,
       apply = true,
       applyMode = "replace",
     } = {}) => {
@@ -196,38 +372,112 @@ export function useAiFeatures({
       setStatus("Starting outpainting...");
 
       try {
+        setProgress(10);
+        setStatus("Exporting canvas image...");
+        
         const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier);
         
         if (!imageBlob) throw new Error("Failed to export canvas image");
 
-        const fd = createFormData(prompt, imageBlob, null, {
+        setProgress(20);
+        setStatus("Preparing outpainting request...");
+
+        const directions = { left, right, top, bottom };
+        
+        const fd = createOutpaintFormData(prompt, imageBlob, directions, {
           guidance_scale,
           steps,
           seed,
         });
 
+        setProgress(30);
+        setStatus("Sending to AI server...");
+        
         const outBlob = await fetchBlob("/outpaint", fd);
 
+        // Create preview URL
         if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
         const url = URL.createObjectURL(outBlob);
         lastUrlRef.current = url;
 
         if (apply && canvasActions?.applyBlobResult) {
+          setProgress(95);
+          setStatus("Applying result to canvas...");
           await canvasActions.applyBlobResult(outBlob, { mode: applyMode });
         }
+
+        setProgress(100);
+        setStatus("Outpainting complete!");
 
         return { blob: outBlob, url };
       } catch (err) {
         const msg = err?.message || "Outpainting failed";
         setError(msg);
+        setStatus(`Error: ${msg}`);
         console.error("Outpainting error:", err);
         throw err;
       } finally {
         setLoading(false);
       }
+    },
+    [canvasActions, createOutpaintFormData, fetchBlob]
+  );
 
-  // AI Action: Background Removal
-  const removeBackground = useCallback(async (image) => {
+  /**
+   * Deblur an image
+   */
+  const deblur = useCallback(
+    async ({
+      image,
+      prompt,
+      strength = 0.35,
+      guidance_scale = 4.0,
+      steps = 40,
+    } = {}) => {
+      setLoading(true);
+      setError(null);
+      setProgress(0);
+      setStatus("Starting deblur...");
+
+      try {
+        setProgress(20);
+        setStatus("Preparing request...");
+
+        const formData = new FormData();
+        if (image) formData.append("image", image);
+        if (prompt) formData.append("prompt", prompt);
+        formData.append("strength", strength.toString());
+        formData.append("guidance_scale", guidance_scale.toString());
+        formData.append("steps", steps.toString());
+
+        setProgress(30);
+        setStatus("Sending to AI server...");
+
+        const outBlob = await fetchBlob("/deblur", formData);
+        
+        const url = URL.createObjectURL(outBlob);
+
+        setProgress(100);
+        setStatus("Deblur complete!");
+
+        return { blob: outBlob, url };
+      } catch (err) {
+        const msg = err?.message || "Deblur failed";
+        setError(msg);
+        setStatus(`Error: ${msg}`);
+        console.error("Deblur error:", err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchBlob]
+  );
+
+  /**
+   * Describe an image
+   */
+  const describe = useCallback(async (image) => {
     setLoading(true);
     setError(null);
     setProgress(0);
@@ -298,6 +548,10 @@ export function useAiFeatures({
 
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
+      
+      setProgress(100);
+      setStatus("Background removed!");
+
       return url;
     } catch (err) {
       const msg = err?.message || "Background removal failed";
@@ -310,7 +564,22 @@ export function useAiFeatures({
     }
   }, []);
 
-  // Cleanup function to revoke object URLs
+  /**
+   * Cancel current operation
+   */
+  const cancel = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setLoading(false);
+    setStatus("Cancelled");
+    setProgress(0);
+  }, []);
+
+  /**
+   * Cleanup function to revoke object URLs
+   */
   const cleanup = useCallback(() => {
     if (lastUrlRef.current) {
       URL.revokeObjectURL(lastUrlRef.current);
@@ -318,37 +587,34 @@ export function useAiFeatures({
     }
   }, []);
 
-  // Helper function to get image dimensions
-  async function getSize(blob) {
-    if (!blob || !(blob instanceof Blob)) {
-      throw new Error("getSize: argument must be a Blob");
-    }
-    return new Promise((resolve, reject) => {
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        resolve({ width: img.width, height: img.height });
-      };
-      
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("Failed to load image for size measurement"));
-      };
-      
-      img.src = url;
-    });
-  }
+  /**
+   * Reset error state
+   */
+  const resetError = useCallback(() => {
+    setError(null);
+    setStatus("");
+  }, []);
 
   return { 
+    // Core functions
     inpaint, 
     outpaint, 
-    removeBackground, 
+    deblur,
+    describe,
+    removeBackground,
+    
+    // Utility functions
+    downloadBlob,
+    getSize,
+    cancel,
+    cleanup,
+    resetError,
+    
+    // State
     loading, 
     error,
-    cleanup 
+    progress,
+    status,
   };
 
   /**

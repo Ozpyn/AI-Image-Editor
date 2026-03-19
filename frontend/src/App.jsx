@@ -15,24 +15,45 @@ export default function App() {
   const [brushColor, setBrushColor] = useState("#ff3b30");
   const [brushSize, setBrushSize] = useState(12);
 
-  // Heal options
-  const [healFlow, setHealFlow] = useState(0.45);
-
-  // Image adjustment options (Fabric filters expect -1..1)
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(0);
   const [saturation, setSaturation] = useState(0);
 
   const [canvasActions, setCanvasActions] = useState(null);
 
+  // Progress bar visibility - directly controlled
+  const [showProgress, setShowProgress] = useState(false);
+
   const handleToolSelect = (tool) => setActiveTool(tool);
 
-  // Create AI hook; it can run only after canvasActions are available
+  // Create AI hook
   const ai = useAiFeatures({
     canvasActions,
   });
 
-  // AI Action Handlers
+  // Directly control progress bar visibility based on ai.loading
+  useEffect(() => {
+    console.log("AI Loading state changed:", ai.loading, "Progress:", ai.progress);
+    
+    if (ai.loading) {
+      setShowProgress(true);
+    } else if (!ai.loading && ai.progress === 100) {
+      // When loading is false and progress is 100, keep showing for a moment then hide
+      const timer = setTimeout(() => {
+        setShowProgress(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    } else if (!ai.loading) {
+      // If loading is false but progress isn't 100 (maybe error or cancelled), hide immediately
+      setShowProgress(false);
+    }
+  }, [ai.loading, ai.progress]);
+
+  // Handle manual close of progress bar
+  const handleProgressComplete = () => {
+    setShowProgress(false);
+  };
+
   const handleAiRemove = async (prompt) => {
     setActiveTool("ai.remove");
     
@@ -42,15 +63,18 @@ export default function App() {
     }
 
     try {
-      // Use ai.inpaint (not inpaintFromCanvas)
+      // Progress bar will show via useEffect when ai.loading becomes true
       await ai.inpaint({
         prompt: prompt || "remove the object, realistic background",
         apply: true,
-        applyMode: "replace",
+        applyMode: "inpaint",
       });
     } catch (error) {
       console.error("AI Remove failed:", error);
-      alert("Failed to remove object: " + error.message);
+      // Error will be shown in progress bar, but we need to ensure it hides after error
+      setTimeout(() => {
+        setShowProgress(false);
+      }, 3000);
     }
   };
 
@@ -63,15 +87,16 @@ export default function App() {
     }
 
     try {
-      // Use ai.inpaint
       await ai.inpaint({
         prompt: prompt || "fill with realistic content",
         apply: true,
-        applyMode: "replace",
+        applyMode: "inpaint",
       });
     } catch (error) {
       console.error("AI Inpaint failed:", error);
-      alert("Failed to inpaint: " + error.message);
+      setTimeout(() => {
+        setShowProgress(false);
+      }, 3000);
     }
   };
 
@@ -84,16 +109,20 @@ export default function App() {
     }
 
     try {
-      // Use ai.outpaint
       await ai.outpaint({
         prompt: prompt || "extend the image realistically",
-        exportMultiplier: 2,
+        left: 100,
+        right: 100,
+        top: 100,
+        bottom: 100,
         apply: true,
         applyMode: "replace",
       });
     } catch (error) {
       console.error("AI Outpaint failed:", error);
-      alert("Failed to extend image: " + error.message);
+      setTimeout(() => {
+        setShowProgress(false);
+      }, 3000);
     }
   };
 
@@ -106,7 +135,6 @@ export default function App() {
     }
 
     try {
-      // Get the current canvas image
       const imageBlob = await canvasActions.exportAsPNGBlob(1, true);
       
       if (!imageBlob) {
@@ -116,14 +144,15 @@ export default function App() {
       const resultUrl = await ai.removeBackground(imageBlob);
       
       if (resultUrl && canvasActions?.applyBlobResult) {
-        // Fetch the blob from the URL
         const response = await fetch(resultUrl);
         const blob = await response.blob();
         await canvasActions.applyBlobResult(blob, { mode: "replace" });
       }
     } catch (error) {
       console.error("AI Remove Background failed:", error);
-      alert("Failed to remove background: " + error.message);
+      setTimeout(() => {
+        setShowProgress(false);
+      }, 3000);
     }
   };
 
@@ -136,7 +165,6 @@ export default function App() {
     }
 
     try {
-      // First remove background
       const imageBlob = await canvasActions.exportAsPNGBlob(1, true);
       
       if (!imageBlob) {
@@ -145,24 +173,23 @@ export default function App() {
 
       const bgRemovedUrl = await ai.removeBackground(imageBlob);
       
-      // Create a blob from the URL
       const response = await fetch(bgRemovedUrl);
       const blob = await response.blob();
       
-      // Apply the background removed image
       await canvasActions.applyBlobResult(blob, { mode: "replace" });
       
-      // Then inpaint with new background prompt if needed
       if (prompt) {
         await ai.inpaint({
           prompt: prompt,
           apply: true,
-          applyMode: "replace",
+          applyMode: "inpaint",
         });
       }
     } catch (error) {
       console.error("AI Replace Background failed:", error);
-      alert("Failed to replace background: " + error.message);
+      setTimeout(() => {
+        setShowProgress(false);
+      }, 3000);
     }
   };
 
@@ -179,6 +206,19 @@ export default function App() {
         aiLoading={ai.loading}
       />
 
+      {/* Progress Bar */}
+      <ProgressBar
+        isProcessing={showProgress}
+        progress={ai.progress}
+        status={ai.status}
+        error={ai.error}
+        onComplete={handleProgressComplete}
+        onCancel={() => {
+          ai.cancel?.();
+          setShowProgress(false);
+        }}
+      />
+
       <div className="flex min-h-0 flex-1">
         <ToolBox
           collapsed={toolboxCollapsed}
@@ -189,7 +229,7 @@ export default function App() {
           brushSize={brushSize}
           onBrushColorChange={setBrushColor}
           onBrushSizeChange={setBrushSize}
-          canvas={canvasActions?.canvas} // Pass canvas if needed
+          canvas={canvasActions?.canvas}
           canvasActions={canvasActions}
         />
 
