@@ -4,34 +4,26 @@ import { Canvas } from "fabric";
 import { fabricImageFromURL, loadImageFromFile } from "./loadImage";
 import {
   clearCanvas,
+  clearMaskObjects,
   setToolMode,
   exportPNG,
+  exportPNGBlob,
+  exportMaskBlob,
+  applyResultBlob,
   fitObjectToCanvas,
   setCanvasSize,
-  applyCropToImage, 
+  applyCropToImage,
   cancelCrop,
   applyImageAdjustments,
+  getOriginalSizeMultiplier,
 } from "./canvasUtils";
-
-function hasRealSize(canvas) {
-  if (!canvas) return false;
-  const w = typeof canvas.getWidth === "function" ? canvas.getWidth() : canvas.width;
-  const h = typeof canvas.getHeight === "function" ? canvas.getHeight() : canvas.height;
-  return w > 2 && h > 2;
-}
-
-function getFirstImage(canvas) {
-  if (!canvas) return null;
-  const active = canvas.getActiveObject?.();
-  if (active && active.type === "image") return active;
-  return canvas.getObjects?.().find((o) => o?.type === "image") || null;
-}
 
 export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {}) {
   const canvasElRef = useRef(null);
   const fabricRef = useRef(null);
   const [ready, setReady] = useState(false);
 
+  // Initialize Fabric canvas
   useEffect(() => {
     if (!canvasElRef.current) return;
 
@@ -41,20 +33,19 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
       selection: true,
     });
 
-    canvasElRef.current.style.width = "100%";
-    canvasElRef.current.style.height = "100%";
-    canvasElRef.current.style.display = "block";
-
     fabricRef.current = canvas;
+    window.canvas = canvas;
     setReady(true);
 
     return () => {
       canvas.dispose();
       fabricRef.current = null;
+      window.canvas = null;
       setReady(false);
     };
   }, []);
 
+  // Canvas listens to activeTool (and brush options) and sets mode accordingly
   useEffect(() => {
     const canvas = fabricRef.current;
     if (!ready || !canvas) return;
@@ -64,35 +55,28 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
         color: brushColor ?? "#ff3b30",
         size: brushSize ?? 12,
       });
+    } else if (activeTool === "mask") {
+      setToolMode(canvas, "mask", {
+        size: brushSize ?? 40,
+      });
+    } else if (activeTool === "erase") {
+      setToolMode(canvas, "erase", {
+        size: brushSize ?? 40,
+      });
     } else {
       setToolMode(canvas, activeTool || "select");
     }
   }, [activeTool, brushColor, brushSize, ready]);
 
-  const safeApplyAdjustments = useCallback(
-    (canvas) => {
-      if (!canvas) return;
-      if (!hasRealSize(canvas)) return;
-
-      const img = getFirstImage(canvas);
-      if (!img) return;
-
-      const nextAdj =
-        adjustments ?? canvas.__adjustments ?? { brightness: 0, contrast: 0, saturation: 0 };
-      canvas.__adjustments = nextAdj;
-
-      canvas.setActiveObject?.(img);
-      applyImageAdjustments(canvas, nextAdj);
-    },
-    [adjustments]
-  );
-
+  // Apply image adjustments whenever they change
   useEffect(() => {
     const canvas = fabricRef.current;
     if (!ready || !canvas) return;
-    safeApplyAdjustments(canvas);
-  }, [safeApplyAdjustments, ready]);
+    if (!adjustments) return;
+    applyImageAdjustments(canvas, adjustments);
+  }, [adjustments, ready]);
 
+  // api object to expose canvas instance
   const api = useMemo(() => {
     return {
       get canvas() {
@@ -101,109 +85,37 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     };
   }, []);
 
-  const setSize = useCallback(
-    (w, h) => {
-      const c = fabricRef.current;
-      if (!c) return;
+  const setSize = useCallback((w, h) => {
+    const c = fabricRef.current;
+    if (!c) return;
+    setCanvasSize(c, w, h);
+  }, []);
 
-      setCanvasSize(c, w, h);
+  const importFile = useCallback(async (file) => {
+    const c = fabricRef.current;
+    if (!c) return;
 
-      const img = getFirstImage(c);
-      if (img) {
-        fitObjectToCanvas(c, img, 32);
-        c.setActiveObject?.(img);
-      }
+    const dataURL = await loadImageFromFile(file);
+    const img = await fabricImageFromURL(dataURL, { selectable: true });
 
-      safeApplyAdjustments(c);
+    clearCanvas(c);
+    c.add(img);
+    fitObjectToCanvas(c, img, 32);
+    c.setActiveObject(img);
+    c.requestRenderAll();
+  }, []);
 
-      requestAnimationFrame(() => {
-        if (!hasRealSize(c)) return;
-        const img2 = getFirstImage(c);
-        if (!img2) return;
-        fitObjectToCanvas(c, img2, 32);
-        c.setActiveObject?.(img2);
-        safeApplyAdjustments(c);
-        c.requestRenderAll?.();
-      });
-    },
-    [safeApplyAdjustments]
-  );
+  const importFromURL = useCallback(async (url) => {
+    const c = fabricRef.current;
+    if (!c) return;
 
-  const importFile = useCallback(
-    async (file) => {
-      const c = fabricRef.current;
-      if (!c) return;
-
-      const dataURL = await loadImageFromFile(file);
-      const img = await fabricImageFromURL(dataURL, { selectable: true });
-
-      clearCanvas(c);
-      c.add(img);
-
-      
-      img.objectCaching = false;
-      img.set?.({ objectCaching: false });
-
-      if (hasRealSize(c)) {
-        fitObjectToCanvas(c, img, 32);
-        c.setActiveObject(img);
-        safeApplyAdjustments(c);
-        c.requestRenderAll();
-      }
-
-      requestAnimationFrame(() => {
-        if (!hasRealSize(c)) return;
-        const i = getFirstImage(c);
-        if (!i) return;
-
-        i.objectCaching = false;
-        i.set?.({ objectCaching: false });
-
-        fitObjectToCanvas(c, i, 32);
-        c.setActiveObject?.(i);
-        safeApplyAdjustments(c);
-        c.requestRenderAll?.();
-      });
-    },
-    [safeApplyAdjustments]
-  );
-
-  const importFromURL = useCallback(
-    async (url) => {
-      const c = fabricRef.current;
-      if (!c) return;
-
-      const img = await fabricImageFromURL(url, { selectable: true });
-
-      clearCanvas(c);
-      c.add(img);
-
-      img.objectCaching = false;
-      img.set?.({ objectCaching: false });
-
-      if (hasRealSize(c)) {
-        fitObjectToCanvas(c, img, 32);
-        c.setActiveObject(img);
-        safeApplyAdjustments(c);
-        c.requestRenderAll();
-      }
-
-      requestAnimationFrame(() => {
-        if (!hasRealSize(c)) return;
-        const i = getFirstImage(c);
-        if (!i) return;
-
-        i.objectCaching = false;
-        i.set?.({ objectCaching: false });
-
-        fitObjectToCanvas(c, i, 32);
-        c.setActiveObject?.(i);
-        safeApplyAdjustments(c);
-        c.requestRenderAll?.();
-      });
-    },
-    [safeApplyAdjustments]
-  );
+    const img = await fabricImageFromURL(url, { selectable: true });
+    clearCanvas(c);
+    c.add(img);
+    fitObjectToCanvas(c, img, 32);
+    c.setActiveObject(img);
+    c.requestRenderAll();
+  }, []);
 
   const reset = useCallback(() => {
     const c = fabricRef.current;
@@ -211,17 +123,42 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     clearCanvas(c);
   }, []);
 
-  const exportAsPNG = useCallback((multiplier = 2) => {
+  const clearMask = useCallback(() => {
+    const c = fabricRef.current;
+    if (!c) return;
+    clearMaskObjects(c);
+  }, []);
+
+  const exportAsPNG = useCallback((multiplier = 1) => {
     const c = fabricRef.current;
     if (!c) return null;
     return exportPNG(c, multiplier);
   }, []);
 
-  /**
-   * ✅ NEW APPLY CROP
-   * Crops the existing image object in-place (best quality & best UX)
-   * instead of exporting a dataURL and re-importing.
-   */
+  const exportAsPNGBlob = useCallback(async (multiplier = 1, useOriginalSize = false) => {
+    const c = fabricRef.current;
+    if (!c) return null;
+    return await exportPNGBlob(c, multiplier, useOriginalSize);
+  }, []);
+
+  const exportAsMaskBlob = useCallback(async (multiplier = 1, useOriginalSize = false) => {
+    const c = fabricRef.current;
+    if (!c) return null;
+    return await exportMaskBlob(c, multiplier, useOriginalSize);
+  }, []);
+
+  const applyBlobResult = useCallback(async (blob, opts) => {
+    const c = fabricRef.current;
+    if (!c) return;
+    await applyResultBlob(c, blob, opts);
+  }, []);
+
+  const getExportMultiplier = useCallback(() => {
+    const c = fabricRef.current;
+    if (!c) return 1;
+    return getOriginalSizeMultiplier(c);
+  }, []);
+
   const applyCrop = useCallback(() => {
     const c = fabricRef.current;
     if (!c) return;
@@ -229,22 +166,14 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     const img = applyCropToImage(c);
     if (!img) return;
 
-    
     img.objectCaching = false;
-    img.set?.({ objectCaching: false });
 
-    // Fit cropped image nicely into canvas
     fitObjectToCanvas(c, img, 32);
     c.setActiveObject?.(img);
-
-    // Re-apply adjustments after crop
-    safeApplyAdjustments(c);
-
     c.requestRenderAll?.();
 
-    // Back to select after applying crop
     setToolMode(c, "select");
-  }, [safeApplyAdjustments]);
+  }, []);
 
   const cancelCropAction = useCallback(() => {
     const c = fabricRef.current;
@@ -253,18 +182,40 @@ export function useCanvas({ activeTool, brushColor, brushSize, adjustments } = {
     setToolMode(c, "select");
   }, []);
 
-  return {
-    canvasElRef,
-    ready,
-    api,
-    actions: {
+  const actions = useMemo(() => {
+    return {
       setSize,
       importFile,
       importFromURL,
       reset,
+      clearMask,
       exportAsPNG,
+      exportAsPNGBlob,
+      exportAsMaskBlob,
+      applyBlobResult,
+      getExportMultiplier,
       applyCrop,
       cancelCrop: cancelCropAction,
-    },
+    };
+  }, [
+    setSize,
+    importFile,
+    importFromURL,
+    reset,
+    clearMask,
+    exportAsPNG,
+    exportAsPNGBlob,
+    exportAsMaskBlob,
+    applyBlobResult,
+    getExportMultiplier,
+    applyCrop,
+    cancelCropAction,
+  ]);
+
+  return {
+    canvasElRef,
+    ready,
+    api,
+    actions,
   };
 }

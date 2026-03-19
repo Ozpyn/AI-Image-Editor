@@ -27,7 +27,7 @@ body {
 /* Editor-specific globals */
 .canvas-container {
   background: #e2e8f0;
-  border: 1px solid #d1d5db;
+  border: 1px solid #e1a222;
   border-radius: var(--radius-lg);
 }
 
@@ -36,13 +36,13 @@ body {
   background: var(--color-panel);
   border-radius: var(--radius-lg);
   border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 16px rgba(206, 52, 52, 0.05);
 }
 
 /* Accent buttons */
 button {
   background: var(--color-accent);
-  color: white;
+  color: rgb(255, 255, 255);
   border-radius: var(--radius-md);
   padding: 0.5rem 1rem;
   font-weight: 500;
