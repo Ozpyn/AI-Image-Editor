@@ -173,7 +173,7 @@ export default function ToolBox({
   return (
     <aside
       className={[
-        "h-full border-r border-white/10 bg-panel/60 backdrop-blur supports-backdrop-filter:bg-panel/40",
+        "h-full border-r border-white/10 bg-panel/60 backdrop-blur supports-backdrop-filter:bg-panel/90",
         collapsed ? "w-16" : "w-64",
         "transition-[width] duration-200 ease-out",
         "shrink-0",
@@ -261,7 +261,7 @@ export default function ToolBox({
 
         {/* Mask options panel */}
         {!collapsed && activeTool === "mask" && (
-          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/10 p-3">
             <div className="text-xs font-semibold text-gray-200">Mask Options</div>
             <div className="mt-2 text-xs text-gray-400">
               Draw white areas to mark regions for AI inpainting

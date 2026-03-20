@@ -1,5 +1,10 @@
+"""Documentation: When a user imports a 3000×2000px image, it's scaled down to fit the canvas (e.g., 800×533px) for display only.
+The outpainting process works with the original full-resolution image—so when a user sets left=200px, right=200px, top=100px, 
+bottom=100px in the ExtendPanel, the AI generates a new 3400×2200px image by adding those pixel values to the original dimensions.
+The result is then scaled back down to fit the canvas view, but the actual image data is now larger.
+ """
 from flask import Flask, request, jsonify, send_file, send_from_directory
-from flask_cors import CORS  # Add this import
+from flask_cors import CORS
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background
 import json
 import os
@@ -8,6 +13,7 @@ import time
 import threading
 import tempfile
 from io import BytesIO
+import traceback
 
 app = Flask(
     __name__,
@@ -44,11 +50,15 @@ def welcome():
 def _run_task_async(task_id, task_func, cleanup_files):
     """Helper to run AI task in background thread with error handling"""
     try:
+        print(f"Starting task {task_id}")
         result = task_func()
         with task_lock:
             task_storage[task_id]["result"] = result
             task_storage[task_id]["status"] = "completed"
+        print(f"Task {task_id} completed successfully")
     except Exception as e:
+        print(f"Task {task_id} failed: {str(e)}")
+        traceback.print_exc()
         with task_lock:
             task_storage[task_id]["error"] = str(e)
             task_storage[task_id]["status"] = "failed"
@@ -57,8 +67,9 @@ def _run_task_async(task_id, task_func, cleanup_files):
             try:
                 if os.path.exists(filepath):
                     os.unlink(filepath)
-            except:
-                pass
+                    print(f"Cleaned up: {filepath}")
+            except Exception as e:
+                print(f"Failed to cleanup {filepath}: {e}")
 
 @app.route("/inpaint", methods=["POST", "OPTIONS"])
 def inpaint():
@@ -85,25 +96,57 @@ def inpaint():
     request.files["image"].save(img_tmp.name)
     request.files["mask"].save(mask_tmp.name)
     
+    print(f"Saved image to: {img_tmp.name}")
+    print(f"Saved mask to: {mask_tmp.name}")
+    
     # Get parameters from form
     prompt = request.form.get("prompt", "")
     guidance_scale = float(request.form.get("guidance_scale", 7.5))
     steps = int(request.form.get("steps", 40))
     seed = int(request.form.get("seed", -1))
+    # ✅ Get composite parameter (default to True for backward compatibility)
+    composite = request.form.get("composite", "true").lower() == "true"
+    
+    print(f"Inpaint params: prompt='{prompt}', guidance_scale={guidance_scale}, steps={steps}, seed={seed}, composite={composite}")
     
     def run():
-        output_path = run_inpaint(
-            img_tmp.name,
-            mask_tmp.name,
-            prompt,
-            guidance_scale=guidance_scale,
-            num_inference_steps=steps,
-            seed=seed
-        )
-        with open(output_path, "rb") as f:
-            result = f.read()
-        os.unlink(output_path)
-        return result
+        try:
+            output_path = run_inpaint(
+                img_tmp.name,
+                mask_tmp.name,
+                prompt,
+                guidance_scale=guidance_scale,
+                num_inference_steps=steps,
+                seed=seed,
+                composite=composite  # ✅ Pass composite to ai.py
+            )
+            
+            print(f"Inpaint output path: {output_path}")
+            
+            # Verify the output file exists and is readable
+            if not os.path.exists(output_path):
+                raise Exception("Output file was not created")
+                
+            with open(output_path, "rb") as f:
+                result = f.read()
+            
+            # Verify the result is valid
+            if not result or len(result) == 0:
+                raise Exception("Output file is empty")
+                
+            print(f"Inpaint result size: {len(result)} bytes")
+            
+            # Clean up output file
+            try:
+                os.unlink(output_path)
+            except:
+                pass
+                
+            return result
+        except Exception as e:
+            print(f"Error in inpaint run function: {str(e)}")
+            traceback.print_exc()
+            raise e
     
     thread = threading.Thread(
         target=_run_task_async,
@@ -138,6 +181,8 @@ def outpaint():
     img_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     request.files["image"].save(img_tmp.name)
     
+    print(f"Saved outpaint image to: {img_tmp.name}")
+    
     # Get parameters
     prompt = request.form.get("prompt", "")
     guidance_scale = float(request.form.get("guidance_scale", 7.5))
@@ -145,10 +190,10 @@ def outpaint():
     seed = int(request.form.get("seed", -1))
     
     # Get expansion directions (left, right, top, bottom)
-    left = int(request.form.get("left", 0))
-    right = int(request.form.get("right", 0))
-    top = int(request.form.get("top", 0))
-    bottom = int(request.form.get("bottom", 0))
+    left = int(request.form.get("left", 100))
+    right = int(request.form.get("right", 100))
+    top = int(request.form.get("top", 100))
+    bottom = int(request.form.get("bottom", 100))
     
     directions = {
         "left": left,
@@ -157,19 +202,45 @@ def outpaint():
         "bottom": bottom
     }
     
+    print(f"Outpaint params: prompt='{prompt}', directions={directions}, guidance_scale={guidance_scale}, steps={steps}, seed={seed}")
+    
     def run():
-        output_path = run_outpaint(
-            img_tmp.name,
-            directions,
-            prompt,
-            guidance_scale=guidance_scale,
-            num_inference_steps=steps,
-            seed=seed
-        )
-        with open(output_path, "rb") as f:
-            result = f.read()
-        os.unlink(output_path)
-        return result
+        try:
+            output_path = run_outpaint(
+                img_tmp.name,
+                directions,
+                prompt,
+                guidance_scale=guidance_scale,
+                num_inference_steps=steps,
+                seed=seed
+            )
+            
+            print(f"Outpaint output path: {output_path}")
+            
+            # Verify the output file exists
+            if not os.path.exists(output_path):
+                raise Exception("Output file was not created")
+                
+            with open(output_path, "rb") as f:
+                result = f.read()
+            
+            # Verify the result is valid
+            if not result or len(result) == 0:
+                raise Exception("Output file is empty")
+                
+            print(f"Outpaint result size: {len(result)} bytes")
+            
+            # Clean up output file
+            try:
+                os.unlink(output_path)
+            except:
+                pass
+                
+            return result
+        except Exception as e:
+            print(f"Error in outpaint run function: {str(e)}")
+            traceback.print_exc()
+            raise e
     
     thread = threading.Thread(
         target=_run_task_async,
@@ -262,6 +333,8 @@ def remove_background():
         output_path = run_remove_background(request.files["image"])
         return send_file(output_path, mimetype="image/png")
     except Exception as e:
+        print(f"Remove background error: {str(e)}")
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @app.route("/task/<task_id>", methods=["GET", "OPTIONS"])
@@ -284,7 +357,8 @@ def get_task(task_id):
         elif task["status"] == "completed":
             return send_file(
                 BytesIO(task["result"]),
-                mimetype="image/png"
+                mimetype="image/png",
+                download_name="result.png"
             )
         elif task["status"] == "failed":
             return jsonify({"error": task["error"]}), 500
@@ -299,6 +373,7 @@ def cleanup_old_tasks():
         ]
         for task_id in expired_tasks:
             del task_storage[task_id]
+            print(f"Cleaned up expired task: {task_id}")
 
 # Run cleanup every 5 minutes
 @app.before_request
@@ -311,4 +386,5 @@ def periodic_cleanup():
         app._cleanup_last_run = time.time()
 
 if __name__ == '__main__':
+    print("Starting Flask server on http://localhost:8000")
     app.run(host="0.0.0.0", port=8000, debug=True)

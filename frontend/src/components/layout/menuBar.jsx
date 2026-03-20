@@ -13,9 +13,9 @@ export default function MenuBar({
 }) {
   const [isAiDropdownOpen, setIsAiDropdownOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
-  const [activeAiAction, setActiveAiAction] = useState(null);
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -23,7 +23,6 @@ export default function MenuBar({
       if (dropdownRef.current && !dropdownRef.current.contains(event.target) &&
           buttonRef.current && !buttonRef.current.contains(event.target)) {
         setIsAiDropdownOpen(false);
-        setActiveAiAction(null);
         setAiPrompt("");
       }
     }
@@ -31,7 +30,20 @@ export default function MenuBar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleAiAction = (action, defaultPrompt) => {
+  // Focus input when dropdown opens
+  useEffect(() => {
+    if (isAiDropdownOpen && inputRef.current) {
+      setTimeout(() => inputRef.current.focus(), 100);
+    }
+  }, [isAiDropdownOpen]);
+
+const handleAiAction = (action, defaultPrompt) => {
+  // For extend, always pass the prompt if it exists, but still open the panel
+  if (action === 'outpaint') {
+    // Pass the prompt if user typed one, otherwise undefined
+    onAiOutpaint(aiPrompt.trim() || undefined);
+  } else {
+    // For other actions, use the prompt if provided, otherwise use default
     const prompt = aiPrompt.trim() || defaultPrompt;
     
     switch(action) {
@@ -40,9 +52,6 @@ export default function MenuBar({
         break;
       case 'inpaint':
         onAiInpaint(prompt);
-        break;
-      case 'outpaint':
-        onAiOutpaint(prompt);
         break;
       case 'removebg':
         onAiRemovebg();
@@ -53,11 +62,11 @@ export default function MenuBar({
       default:
         break;
     }
-    
-    setIsAiDropdownOpen(false);
-    setAiPrompt("");
-    setActiveAiAction(null);
-  };
+  }
+  
+  setIsAiDropdownOpen(false);
+  setAiPrompt("");
+};
 
   const aiMenuItems = [
     { 
@@ -71,7 +80,7 @@ export default function MenuBar({
     { 
       id: 'inpaint', 
       label: 'Inpaint', 
-      tooltip: 'Type prompt or see the magic',
+      tooltip: 'Fill selected area with AI',
       requiresPrompt: true,
       defaultPrompt: 'fill with realistic content',
       action: onAiInpaint
@@ -79,9 +88,8 @@ export default function MenuBar({
     { 
       id: 'outpaint', 
       label: 'Extend Image', 
-      tooltip: 'Type prompt or see the magic',
-      requiresPrompt: true,
-      defaultPrompt: 'extend the image realistically',
+      tooltip: 'Extend image boundaries with AI',
+      requiresPrompt: false, // This opens the extend panel
       action: onAiOutpaint
     },
     { 
@@ -94,7 +102,7 @@ export default function MenuBar({
     { 
       id: 'replacebg', 
       label: 'Replace Background', 
-      tooltip: 'Type prompt or see the magic',
+      tooltip: 'Replace background with AI',
       requiresPrompt: true,
       defaultPrompt: 'replace with a beautiful background',
       action: onAiReplacebg
@@ -102,13 +110,13 @@ export default function MenuBar({
   ];
 
   return (
-    <header className="h-14 w-full border-b border-white/10 bg-panel/70 backdrop-blur supports-backdrop-filter:bg-panel/50 relative" style={{ zIndex: 1000 }}>
+    <header className="h-14 w-full border-b border-white/10 bg-panel/90 backdrop-blur supports-backdrop-filter:bg-panel/0 relative" style={{ zIndex: 1000 }}>
       <div className="mx-auto flex h-full max-w-400 items-center justify-between px-3 md:px-4">
         {/* Left: App + Menus */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-1.5">
+          <div className="flex items-center gap-2 rounded-lg  px-2.5 py-1.5">
             <Sparkles className="h-4 w-4 text-accent" />
-            <span className="text-sm font-semibold tracking-wide">Big AI Photo Editor</span>
+            <span className="text-sm font-semibold tracking-wide text-white">Big AI Photo Editor</span>
           </div>
 
           <nav className="hidden items-center gap-1 md:flex">
@@ -122,8 +130,8 @@ export default function MenuBar({
                 ref={buttonRef}
                 onClick={() => setIsAiDropdownOpen(!isAiDropdownOpen)}
                 className={[
-                  "flex items-center gap-1 rounded-lg px-3 py-2 text-sm",
-                  "hover:bg-white/10 transition-colors",
+                  "flex items-center gap-1 rounded-lg px-3 py-2 text-sm transition-colors",
+                  "hover:bg-white/10",
                   activeTool?.startsWith("ai.") || isAiDropdownOpen 
                     ? "bg-accent text-white" 
                     : "text-gray-200"
@@ -146,89 +154,74 @@ export default function MenuBar({
                   {/* Backdrop to block canvas interactions */}
                   <div 
                     className="fixed inset-0" 
-                    style={{ zIndex: 999 }}
+                    style={{ zIndex: 10 }}
                     onClick={() => setIsAiDropdownOpen(false)}
                   />
                   
                   {/* Actual Dropdown */}
                   <div 
                     ref={dropdownRef}
-                    className="absolute left-0 top-full mt-1 w-80 rounded-lg border border-white/10 bg-panel/95 backdrop-blur shadow-xl"
+                    className="absolute left-0 top-full mt-1 mb-2 w-60 rounded-2xl border border-white/10  shadow-xl"
                     style={{ 
-                      zIndex: 1002,
+                      zIndex: 10,
                       maxHeight: 'min(600px, calc(100vh - 100px))', 
                       overflowY: 'auto'
                     }}
                   >
-                    {/* Prompt Input */}
+                    {/* Prompt Input - Only show for actions that need it */}
                     <div className="p-3 border-b border-white/10">
                       <input
+                        ref={inputRef}
                         type="text"
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
-                        placeholder="Enter your prompt (optional)..."
-                        className="w-full rounded-lg bg-white/5 px-3 py-2 text-sm text-white placeholder-gray-400 border border-white/10 focus:outline-none focus:border-accent"
-                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            // Find first prompt-requiring item
+                            const firstPromptItem = aiMenuItems.find(item => item.requiresPrompt);
+                            if (firstPromptItem) {
+                              handleAiAction(firstPromptItem.id, firstPromptItem.defaultPrompt);
+                            }
+                          }
+                        }}
+                        placeholder="Enter prompt (optional)..."
+                        className="w-full rounded-lg bg-gray-800 px-3 py-2 text-sm text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       />
+                      
                     </div>
 
                     {/* Menu Items */}
                     <div className="p-2">
                       {aiMenuItems.map((item) => (
-                        <div key={item.id} className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (item.requiresPrompt) {
-                                if (activeAiAction === item.id) {
-                                  // If already selected, execute the action
-                                  handleAiAction(item.id, item.defaultPrompt);
-                                } else {
-                                  // First click: show prompt and select
-                                  setActiveAiAction(item.id);
-                                }
-                              } else {
-                                // No prompt needed, execute immediately
-                                handleAiAction(item.id, item.defaultPrompt);
-                              }
-                            }}
-                            onMouseEnter={() => !item.requiresPrompt && setActiveAiAction(item.id)}
-                            onMouseLeave={() => !item.requiresPrompt && setActiveAiAction(null)}
-                            className={[
-                              "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                              "hover:bg-white/10",
-                              activeAiAction === item.id ? "bg-accent/20 border border-accent/50" : "",
-                              aiLoading ? "opacity-50 cursor-not-allowed" : ""
-                            ].join(" ")}
-                            disabled={aiLoading}
-                            title={item.tooltip}
-                            type="button"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-200">{item.label}</span>
-                              {item.requiresPrompt && (
-                                <span className="text-xs text-gray-400">
-                                  {activeAiAction === item.id ? 'Click again to confirm' : 'Click to select'}
-                                </span>
-                              )}
-                            </div>
-                            {activeAiAction === item.id && item.requiresPrompt && (
-                              <div className="mt-1 text-xs text-gray-400">
-                                Using: "{aiPrompt || item.defaultPrompt}"
-                              </div>
+                        <button
+                          key={item.id}
+                          onClick={() => handleAiAction(item.id, item.defaultPrompt)}
+                          className={[
+                            "w-full text-left px-3 py-3 mb-2 rounded-lg text-sm transition-colors",
+                            "hover:bg-gray-800",
+                            aiLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+                            item.id === 'outpaint' ? "border-l-2 border-accent" : "" // Highlight extend as special
+                          ].join(" ")}
+                          disabled={aiLoading}
+                          title={item.tooltip}
+                          type="button"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-white">{item.label}</span>
+                            {item.requiresPrompt && aiPrompt && (
+                              <span className="text-xs text-gray-400 ml-2" title={aiPrompt}>
+                                "{aiPrompt.substring(0, 15)}{aiPrompt.length > 15 ? '…' : ''}"
+                              </span>
                             )}
-                          </button>
-                        </div>
+                            {item.id === 'outpaint' && (
+                              <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded">
+                                Opens panel
+                              </span>
+                            )}
+                          </div>
+                         
+                        </button>
                       ))}
-                    </div>
-
-                    {/* Info Footer */}
-                    <div className="p-2 border-t border-white/10 bg-white/5">
-                      <p className="text-xs text-gray-400">
-                        {activeAiAction 
-                          ? "Click again to confirm with current prompt" 
-                          : "Select an AI tool to get started"}
-                      </p>
                     </div>
                   </div>
                 </>
@@ -261,23 +254,23 @@ function MenuItem({ label, badge, onClick, active }) {
       type="button"
       onClick={onClick}
       className={[
-        "relative rounded-lg px-3 py-2 text-sm text-gray-200 hover:bg-white/5",
-        active ? "bg-accent text-white" : "text-gray-200"
+        "relative rounded-lg px-3 py-2 text-sm transition-colors",
+        active ? "bg-accent text-white" : "text-gray-200 hover:bg-white/5"
       ].join(" ")}
     >
       {label}
-      {badge ? (
+      {badge && (
         <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-300">
           {badge}
         </span>
-      ) : null}
+      )}
     </button>
   );
 }
 
 function IconPill({ icon, label }) {
   return (
-    <button className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 text-sm hover:bg-white/10">
+    <button className="inline-flex items-center gap-2 rounded-lg bg-white/5 px-2.5 py-2 text-sm text-gray-200 hover:bg-white/10 transition-colors">
       {icon}
       <span className="hidden md:inline">{label}</span>
     </button>
