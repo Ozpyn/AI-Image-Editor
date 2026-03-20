@@ -102,7 +102,8 @@ export function useAiFeatures({
   const createFormData = useCallback((prompt, image, mask, { 
     guidance_scale = 7.5, 
     steps = 40, 
-    seed = -1 
+    seed = -1,
+    composite = true,
   } = {}) => {
     const formData = new FormData();
     formData.append("prompt", prompt || "");
@@ -111,6 +112,7 @@ export function useAiFeatures({
     formData.append("guidance_scale", guidance_scale.toString());
     formData.append("steps", steps.toString());
     formData.append("seed", seed.toString());
+    formData.append("composite", composite.toString());
     return formData;
   }, []);
 
@@ -238,7 +240,7 @@ export function useAiFeatures({
       useOriginalSize = true,
       apply = true,
       applyMode = "inpaint", // "inpaint" | "replace" | "newLayer"
-      autoResizeMask = true, // Automatically resize mask to match image
+      autoResizeMask = true,
     } = {}) => { 
       console.log("Inpaint called with:", { exportMultiplier, useOriginalSize, applyMode });
       
@@ -285,7 +287,6 @@ export function useAiFeatures({
             setStatus("Resizing mask to match image dimensions...");
             maskBlob = await resizeBlob(maskBlob, imageSize.width, imageSize.height);
             
-            // Verify resize worked
             const newMaskSize = await getSize(maskBlob);
             console.log("Mask resized to:", newMaskSize);
             
@@ -301,6 +302,13 @@ export function useAiFeatures({
 
         setProgress(25);
         setStatus("Preparing AI request...");
+
+        // Determine composite based on applyMode
+        // "inpaint" mode = composite=true (keep original outside mask)
+        // "replace" mode = composite=false (use AI everywhere)
+        const composite = applyMode === "inpaint";
+        
+        console.log(`Setting composite=${composite} based on applyMode=${applyMode}`);
 
         const fd = createFormData(prompt, imageBlob, maskBlob, {
           guidance_scale,
@@ -355,6 +363,7 @@ export function useAiFeatures({
       steps = 40,
       seed = -1,
       exportMultiplier = 1,
+      useOriginalSize = true,
       left = 100,
       right = 100,
       top = 100,
@@ -375,7 +384,7 @@ export function useAiFeatures({
         setProgress(10);
         setStatus("Exporting canvas image...");
         
-        const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier);
+        const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier, useOriginalSize);
         
         if (!imageBlob) throw new Error("Failed to export canvas image");
 

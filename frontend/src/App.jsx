@@ -24,7 +24,17 @@ export default function App() {
   // Progress bar visibility - directly controlled
   const [showProgress, setShowProgress] = useState(false);
 
-  const handleToolSelect = (tool) => setActiveTool(tool);
+  // Store extend params for when user clicks from menu
+  const [pendingExtendParams, setPendingExtendParams] = useState(null);
+
+  const handleToolSelect = (tool) => {
+    setActiveTool(tool);
+    
+    // If selecting extend tool, open properties panel
+    if (tool === "ai.outpaint") {
+      setPropertiesOpen(true);
+    }
+  };
 
   // Create AI hook
   const ai = useAiFeatures({
@@ -54,6 +64,27 @@ export default function App() {
     setShowProgress(false);
   };
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl/Cmd + E for Extend
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        setActiveTool('ai.outpaint');
+        setPropertiesOpen(true);
+      }
+      
+      // Esc to cancel extend mode
+      if (e.key === 'Escape' && activeTool === 'ai.outpaint') {
+        setActiveTool('select');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTool]);
+
+  // ✅ FIXED: Remove Object - uses "inpaint" mode (composite=true)
   const handleAiRemove = async (prompt) => {
     setActiveTool("ai.remove");
     
@@ -63,44 +94,44 @@ export default function App() {
     }
 
     try {
-      // Progress bar will show via useEffect when ai.loading becomes true
       await ai.inpaint({
         prompt: prompt || "remove the object, realistic background",
         apply: true,
-        applyMode: "inpaint",
+        applyMode: "inpaint", // Keeps original outside mask
       });
     } catch (error) {
       console.error("AI Remove failed:", error);
-      // Error will be shown in progress bar, but we need to ensure it hides after error
       setTimeout(() => {
         setShowProgress(false);
       }, 3000);
     }
   };
 
+  // ✅ FIXED: Inpaint/Replace - uses "replace" mode (composite=false)
   const handleAiInpaint = async (prompt) => {
-    setActiveTool("ai.inpaint");
-    
-    if (!canvasActions) {
-      alert("Canvas not ready yet.");
-      return;
-    }
+  setActiveTool("ai.inpaint");
+  
+  if (!canvasActions) {
+    alert("Canvas not ready yet.");
+    return;
+  }
 
-    try {
-      await ai.inpaint({
-        prompt: prompt || "fill with realistic content",
-        apply: true,
-        applyMode: "inpaint",
-      });
-    } catch (error) {
-      console.error("AI Inpaint failed:", error);
-      setTimeout(() => {
-        setShowProgress(false);
-      }, 3000);
-    }
-  };
+  try {
+    await ai.inpaint({
+      prompt: prompt || "a realistic red apple with stem, detailed texture", // Better default
+      apply: true,
+      applyMode: "inpaint", // Change back to "inpaint" to keep original outside mask
+    });
+  } catch (error) {
+    console.error("AI Inpaint failed:", error);
+    setTimeout(() => {
+      setShowProgress(false);
+    }, 3000);
+  }
+};
 
-  const handleAiOutpaint = async (prompt) => {
+  // Handle extend tool - stores prompt and opens panel
+  const handleAiOutpaint = async (promptFromDropdown) => {
     setActiveTool("ai.outpaint");
     
     if (!canvasActions) {
@@ -108,16 +139,36 @@ export default function App() {
       return;
     }
 
+    // Store the prompt from dropdown to use later
+    setPendingExtendParams({ 
+      prompt: promptFromDropdown || "extend the image realistically, seamless continuation"
+    });
+    
+    // Open properties panel to show ExtendPanel
+    setPropertiesOpen(true);
+  };
+
+  // Execute outpainting - called from ExtendPanel
+  const executeAiOutpaint = async (params) => {
+    if (!canvasActions) {
+      alert("Canvas not ready yet.");
+      return;
+    }
+
     try {
       await ai.outpaint({
-        prompt: prompt || "extend the image realistically",
-        left: 100,
-        right: 100,
-        top: 100,
-        bottom: 100,
+        prompt: params.prompt || "extend the image realistically, seamless continuation",
+        left: params.left || 100,
+        right: params.right || 100,
+        top: params.top || 100,
+        bottom: params.bottom || 100,
         apply: true,
         applyMode: "replace",
       });
+      
+      // After successful extension, switch back to select tool
+      setActiveTool("select");
+      setPendingExtendParams(null);
     } catch (error) {
       console.error("AI Outpaint failed:", error);
       setTimeout(() => {
@@ -156,6 +207,7 @@ export default function App() {
     }
   };
 
+  // ✅ FIXED: Replace Background - uses "replace" mode for the inpaint part
   const handleAiReplacebg = async (prompt) => {
     setActiveTool("ai.replacebg");
     
@@ -182,7 +234,7 @@ export default function App() {
         await ai.inpaint({
           prompt: prompt,
           apply: true,
-          applyMode: "inpaint",
+          applyMode: "replace", // ✅ Changed from "inpaint" to "replace"
         });
       }
     } catch (error) {
@@ -194,7 +246,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen flex-col">
+    <div className="flex h-screen w-screen flex-col bg-gradient-to-br from-gray-900 to-blue-800 text-white">
       <MenuBar
         activeTool={activeTool}
         onToolSelect={handleToolSelect}
