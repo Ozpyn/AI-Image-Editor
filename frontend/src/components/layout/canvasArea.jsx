@@ -12,6 +12,7 @@ export default function CanvasArea({
   healFlow,
   adjustments,
   exportRequestId,
+  onCanvasActionsReady,
 }) {
   const fileRef = useRef(null);
   const stageRef = useRef(null);
@@ -23,6 +24,11 @@ export default function CanvasArea({
     healFlow,
     adjustments,
   });
+
+  useEffect(() => {
+    onCanvasActionsReady?.(actions);
+    return () => onCanvasActionsReady?.(null);
+  }, [actions, onCanvasActionsReady]);
 
   useEffect(() => {
     if (!ready || !stageRef.current) return;

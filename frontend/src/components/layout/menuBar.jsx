@@ -1,5 +1,5 @@
-/* Lets import our icons from lucide */
-import { Download, Sparkles, Undo2, Redo2 } from "lucide-react";
+{/*Lets import our icons from lucide*/}
+import { FileImage, FileImage,Download, Sparkles, Undo2, Redo2 } from "lucide-react";
 
 export default function MenuBar({ onExport }) {
   return (
@@ -148,7 +148,11 @@ function MenuItem({ label, badge, onClick, active }) {
   return (
     <button
       type="button"
-      className="relative rounded-lg px-3 py-2 text-sm text-gray-200 hover:bg-white/5"
+      onClick={onClick}
+      className={[
+        "relative rounded-lg px-3 py-2 text-sm hover:bg-white/5",
+        active ? "bg-white/10 text-white" : "text-gray-200",
+      ].join(" ")}
     >
       {label}
       {badge && (
