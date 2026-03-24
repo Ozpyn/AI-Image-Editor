@@ -55,7 +55,12 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen flex-col">
-      <MenuBar onExport={handleExport} />
+      <MenuBar
+        activeTool={activeTool}
+        onToolSelect={handleToolSelect}
+        onAiTest={onAiTest}
+        onExport={handleExport}
+      />
 
       <div className="flex min-h-0 flex-1">
         <ToolBox

@@ -64,9 +64,13 @@ function normalizeToDataURL(htmlImg, {
 /**
  * Public API: file -> normalized DataURL
  */
-export async function loadImageFromFile(file) {
+export async function loadImageFromFile(file, { normalize = false } = {}) {
   if (!file) throw new Error("No file provided");
   if (!file.type?.startsWith("image/")) throw new Error("File is not an image");
+
+  if (!normalize) {
+    return URL.createObjectURL(file);
+  }
 
   const raw = await readFileAsDataURL(file);
   const htmlImg = await loadHtmlImage(raw);
@@ -88,13 +92,18 @@ export function fabricImageFromURL(url, opts = {}) {
     if (!url) return reject(new Error("No URL provided"));
 
     const isHttp = /^https?:\/\//i.test(url);
+    const isBlob = /^blob:/i.test(url);
     const options = isHttp ? { crossOrigin: "anonymous" } : {};
 
     FabricImage.fromURL(url, options)
       .then((img) => {
         img.set({ selectable: true, evented: true, ...opts });
+        if (isBlob) URL.revokeObjectURL(url);
         resolve(img);
       })
-      .catch(() => reject(new Error("Failed to create fabric image")));
+      .catch(() => {
+        if (isBlob) URL.revokeObjectURL(url);
+        reject(new Error("Failed to create fabric image"));
+      });
   });
 }
