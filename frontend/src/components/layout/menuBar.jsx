@@ -1,5 +1,5 @@
 {/*Lets import our icons from lucide*/}
-import { FileImage, FileImage,Download, Sparkles, Undo2, Redo2 } from "lucide-react";
+import { FileImage,Download, Sparkles, Undo2, Redo2 } from "lucide-react";
 
 export default function MenuBar({ onExport }) {
   return (
