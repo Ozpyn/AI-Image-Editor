@@ -11,8 +11,12 @@ export default function App() {
   const [propertiesOpen, setPropertiesOpen] = useState(true);
   const [activeTool, setActiveTool] = useState("select");
 
+  // Brush options
   const [brushColor, setBrushColor] = useState("#ff3b30");
   const [brushSize, setBrushSize] = useState(12);
+
+  // Heal options
+  const [healFlow, setHealFlow] = useState(0.45);
 
   // Image adjustment options (Fabric filters expect -1..1)
   const [brightness, setBrightness] = useState(0);
@@ -41,6 +45,12 @@ export default function App() {
       apply: true,
       applyMode: "replace",
     });
+  }
+  // Export trigger
+  const [exportRequestId, setExportRequestId] = useState(0);
+
+  const handleExport = () => {
+    setExportRequestId((prev) => prev + 1);
   };
 
   return (
@@ -49,6 +59,7 @@ export default function App() {
         activeTool={activeTool}
         onToolSelect={handleToolSelect}
         onAiTest={onAiTest}
+        onExport={handleExport}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -67,7 +78,9 @@ export default function App() {
           activeTool={activeTool}
           brushColor={brushColor}
           brushSize={brushSize}
+          healFlow={healFlow}
           adjustments={{ brightness, contrast, saturation }}
+          exportRequestId={exportRequestId}
           onCanvasActionsReady={setCanvasActions}
         />
 
@@ -80,6 +93,8 @@ export default function App() {
             onBrushColorChange={setBrushColor}
             brushSize={brushSize}
             onBrushSizeChange={setBrushSize}
+            healFlow={healFlow}
+            onHealFlowChange={setHealFlow}
             brightness={brightness}
             onBrightnessChange={setBrightness}
             contrast={contrast}
