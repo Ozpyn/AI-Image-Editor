@@ -5,25 +5,30 @@ import { useEffect, useRef } from "react";
 import { useCanvas } from "../../features/canvas/useCanvas";
 import { ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 
-export default function CanvasArea({ activeTool, brushColor, brushSize, adjustments, onCanvasActionsReady }) {
+export default function CanvasArea({
+  activeTool,
+  brushColor,
+  brushSize,
+  healFlow,
+  adjustments,
+  exportRequestId,
+  onCanvasActionsReady,
+}) {
   const fileRef = useRef(null);
   const stageRef = useRef(null);
 
-  //  forward adjustments into useCanvas
-  const { canvasElRef, ready, actions } = useCanvas({
+  const { canvasElRef, ready, zoomPercent, actions } = useCanvas({
     activeTool,
     brushColor,
     brushSize,
+    healFlow,
     adjustments,
   });
 
-  // Expose actions upward (for AI features / panels / other UI)
   useEffect(() => {
-    if (!ready) return;
-    if (typeof onCanvasActionsReady === "function") {
-      onCanvasActionsReady(actions);
-    }
-  }, [ready, actions, onCanvasActionsReady]);
+    onCanvasActionsReady?.(actions);
+    return () => onCanvasActionsReady?.(null);
+  }, [actions, onCanvasActionsReady]);
 
   useEffect(() => {
     if (!ready || !stageRef.current) return;
@@ -36,12 +41,27 @@ export default function CanvasArea({ activeTool, brushColor, brushSize, adjustme
       }
     };
 
-    resize(); // initial
+    resize();
     const ro = new ResizeObserver(resize);
     ro.observe(stageArea);
 
     return () => ro.disconnect();
-  }, [ready, actions]);
+  }, [ready, actions.setSize]);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (!exportRequestId) return;
+
+    const dataUrl = actions.exportAsPNG?.(2);
+    if (!dataUrl) return;
+
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = `edited-image-${Date.now()}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [exportRequestId, ready, actions]);
 
   const onPickFile = () => fileRef.current?.click();
 
@@ -58,7 +78,6 @@ export default function CanvasArea({ activeTool, brushColor, brushSize, adjustme
 
   return (
     <main className="relative flex min-w-0 flex-1 flex-col">
-      {/* Top canvas toolbar */}
       <div className="flex h-12 items-center justify-between border-b border-white/10 bg-panel/30 px-3 backdrop-blur">
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <span className="hidden md:inline">Project:</span>
@@ -68,18 +87,30 @@ export default function CanvasArea({ activeTool, brushColor, brushSize, adjustme
         </div>
 
         <div className="flex items-center gap-1">
-          <IconBtn label="Zoom out" icon={<ZoomOut className="h-4 w-4" />} />
-          <div className="rounded-md bg-white/5 px-2 py-1 text-sm text-gray-600">100%</div>
-          <IconBtn label="Zoom in" icon={<ZoomIn className="h-4 w-4" />} />
+          <IconBtn
+            label="Zoom out"
+            icon={<ZoomOut className="h-4 w-4" />}
+            onClick={actions.zoomOut}
+          />
+          <div className="rounded-md bg-white/5 px-2 py-1 text-sm text-gray-600">
+            {zoomPercent}%
+          </div>
+          <IconBtn
+            label="Zoom in"
+            icon={<ZoomIn className="h-4 w-4" />}
+            onClick={actions.zoomIn}
+          />
           <div className="mx-1 h-6 w-px bg-white/10" />
-          <IconBtn label="Fit" icon={<Maximize2 className="h-4 w-4" />} />
+          <IconBtn
+            label="Fit"
+            icon={<Maximize2 className="h-4 w-4" />}
+            onClick={actions.fitToView}
+          />
         </div>
       </div>
 
-      {/* Canvas stage */}
       <div className="flex flex-1 items-center justify-center p-3 md:p-6">
         <div className="relative aspect-4/3 w-full max-w-275 rounded-2xl border border-white/10 bg-linear-to-b from-white/5 to-white/0 shadow-[0_20px_80px_rgba(0,0,0,0.35)]">
-          {/* Checkerboard background */}
           <div
             className="absolute inset-0 rounded-2xl opacity-60"
             style={{
@@ -90,7 +121,6 @@ export default function CanvasArea({ activeTool, brushColor, brushSize, adjustme
             }}
           />
 
-          {/* Fabric canvas */}
           <div className="relative z-10 flex h-full w-full items-center justify-center p-3">
             <div
               ref={stageRef}
@@ -125,17 +155,16 @@ export default function CanvasArea({ activeTool, brushColor, brushSize, adjustme
                 </button>
 
                 <button
-                  onClick={() => actions.reset()}
+                  onClick={actions.reset}
                   className="rounded-lg bg-white/5 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
                   type="button"
                 >
                   Clear
                 </button>
 
-                {/* Crop button only in crop mode */}
                 {activeTool === "crop" && (
                   <button
-                    onClick={() => actions.applyCrop?.()}
+                    onClick={actions.applyCrop}
                     className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
                     type="button"
                   >
@@ -151,13 +180,14 @@ export default function CanvasArea({ activeTool, brushColor, brushSize, adjustme
   );
 }
 
-function IconBtn({ icon, label }) {
+function IconBtn({ icon, label, onClick }) {
   return (
     <button
       className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-sky-600 transition hover:bg-indigo-50 hover:text-indigo-600"
       aria-label={label}
       title={label}
       type="button"
+      onClick={onClick}
     >
       {icon}
     </button>

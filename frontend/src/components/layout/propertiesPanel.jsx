@@ -1,19 +1,19 @@
-import { Layers, SlidersHorizontal, Brush } from "lucide-react";
+import { Layers, SlidersHorizontal, Brush, Wand2 } from "lucide-react";
 
 export default function PropertiesPanel({
   open,
   onToggle,
 
-  // context
   activeTool,
 
-  // brush controls
   brushColor,
   onBrushColorChange,
   brushSize,
   onBrushSizeChange,
 
-  // image adjustments
+  healFlow,
+  onHealFlowChange,
+
   brightness,
   onBrightnessChange,
   contrast,
@@ -21,6 +21,10 @@ export default function PropertiesPanel({
   saturation,
   onSaturationChange,
 }) {
+  const isBrushTool = activeTool === "brush";
+  const isHealTool = activeTool === "heal";
+  const isAdjustTool = activeTool === "adjust";
+
   return (
     <aside
       className={[
@@ -47,8 +51,7 @@ export default function PropertiesPanel({
       </div>
 
       <div className="space-y-3 px-3 pb-3">
-        {/* Brush options only when brush tool is active */}
-        {activeTool === "brush" && (
+        {isBrushTool && (
           <PanelCard title="Brush Settings" icon={<Brush className="h-4 w-4" />}>
             <div className="space-y-4">
               <div>
@@ -88,6 +91,76 @@ export default function PropertiesPanel({
           </PanelCard>
         )}
 
+        {isHealTool && (
+          <PanelCard title="Heal Settings" icon={<Wand2 className="h-4 w-4" />}>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Stamp Size</span>
+                  <span>{brushSize ?? 24}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="80"
+                  value={brushSize ?? 24}
+                  onChange={(e) => onBrushSizeChange?.(Number(e.target.value))}
+                  className="mt-2 w-full accent-sky-500"
+                  aria-label="Heal size"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between text-xs text-gray-600">
+                  <span>Flow</span>
+                  <span>{Math.round((healFlow ?? 0.45) * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.05"
+                  max="1"
+                  step="0.05"
+                  value={healFlow ?? 0.45}
+                  onChange={(e) => onHealFlowChange?.(parseFloat(e.target.value))}
+                  className="mt-2 w-full accent-sky-500"
+                  aria-label="Heal flow"
+                />
+              </div>
+
+              <div className="text-[11px] text-gray-500">
+                Hold <span className="font-semibold">Alt</span> (or Option on Mac) and click to set
+                the source point, then paint to softly clone nearby pixels.
+              </div>
+            </div>
+          </PanelCard>
+        )}
+
+        {isAdjustTool && (
+          <PanelCard
+            title="Image Adjustments"
+            icon={<SlidersHorizontal className="h-4 w-4 text-sky-500" />}
+          >
+            <AdjustSlider
+              label="Brightness"
+              value={brightness}
+              onChange={onBrightnessChange}
+            />
+            <AdjustSlider
+              label="Contrast"
+              value={contrast}
+              onChange={onContrastChange}
+            />
+            <AdjustSlider
+              label="Saturation"
+              value={saturation}
+              onChange={onSaturationChange}
+            />
+            <div className="mt-2 text-[11px] text-gray-500">
+              Range: -1 to 1 (matches Fabric filter inputs). 0 = no change.
+            </div>
+          </PanelCard>
+        )}
+
         <PanelCard title="Layers" icon={<Layers className="h-4 w-4" />}>
           <div className="text-xs text-gray-600">
             Placeholder for layers. Later you can render real canvas objects here.
@@ -97,33 +170,18 @@ export default function PropertiesPanel({
             <LayerRow name="Image 1" />
           </div>
           <div className="mt-3 flex gap-2">
-            <button className="w-1/2 rounded-lg bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200" type="button">
+            <button
+              className="w-1/2 rounded-lg bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200"
+              type="button"
+            >
               + Add
             </button>
-            <button className="w-1/2 rounded-lg bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200" type="button">
+            <button
+              className="w-1/2 rounded-lg bg-gray-100 px-3 py-2 text-sm hover:bg-gray-200"
+              type="button"
+            >
               − Remove
             </button>
-          </div>
-        </PanelCard>
-
-        <PanelCard title="Image Adjustments" icon={<SlidersHorizontal className="h-4 w-4 text-sky-500" />}>
-          <AdjustSlider
-            label="Brightness"
-            value={brightness}
-            onChange={onBrightnessChange}
-          />
-          <AdjustSlider
-            label="Contrast"
-            value={contrast}
-            onChange={onContrastChange}
-          />
-          <AdjustSlider
-            label="Saturation"
-            value={saturation}
-            onChange={onSaturationChange}
-          />
-          <div className="mt-2 text-[11px] text-gray-500">
-            Range: -1 to 1 (matches Fabric filter inputs). 0 = no change.
           </div>
         </PanelCard>
       </div>
