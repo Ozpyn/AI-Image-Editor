@@ -47,44 +47,78 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
 
 print("All models loaded successfully!")
 
-def run_inpaint(image_path, mask_path, prompt=None, guidance_scale=7.5, 
-                num_inference_steps=40, seed=-1, composite=True):
-    """Run inpainting on an image with a mask
-    composite=True: Keep original outside mask (for remove object)
-    composite=False: Use AI result everywhere (for replace object)
-    """
-    print(f"Running inpaint: image={image_path}, mask={mask_path}, prompt={prompt}, composite={composite}")
-    
-    try:
-        # Set seed for reproducibility
-        if seed >= 0:
-            torch.manual_seed(seed)
-        
-        # Load images
-        original_image = Image.open(image_path).convert("RGB")
-        mask = Image.open(mask_path).convert("L")  # Convert to grayscale
-        
-        print(f"Original image size: {original_image.size}")
-        print(f"Mask size: {mask.size}")
-        
-        # Ensure mask is binary
-        mask = mask.point(lambda x: 255 if x > 128 else 0)
-        
-        original_size = original_image.size
-        
-        # Resize for model if needed
-        target_size = (512, 512)
-        if original_image.size != target_size:
-            print(f"Resizing image from {original_image.size} to {target_size}")
-            image_resized = original_image.resize(target_size, Image.Resampling.LANCZOS)
-            mask_resized = mask.resize(target_size, Image.Resampling.LANCZOS)
-        else:
-            image_resized = original_image
-            mask_resized = mask
-        
-        prompt = prompt or ""
-        print(f"Generating with prompt: '{prompt}'")
-        
+caption_processor = BlipProcessor.from_pretrained(
+    "Salesforce/blip-image-captioning-base"
+)
+caption_model = BlipForConditionalGeneration.from_pretrained(
+    "Salesforce/blip-image-captioning-base"
+).to(DEVICE)
+
+# inpainting_pipe.enable_xformers_memory_efficient_attention()
+
+# These might be changed later to implement Redis, which would allow us to queue jobs.
+# We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
+
+def run_inpaint(image, mask, prompt=None, progress_callback=None):
+    image = Image.open(image).convert("RGB")
+    mask = Image.open(mask).convert("RGB")
+    original_size = image.size
+    prompt = prompt or ""
+    guidance = 1.0 if prompt == "" else 4.0
+
+    total_steps = 40
+
+    def callback(step, timestep, latents):
+        if progress_callback:
+            percent = int(((step + 1) / total_steps) * 100)
+            progress_callback(percent)
+
+    with torch.inference_mode():
+        result = inpainting_pipe(
+            prompt=prompt,
+            image=image,
+            mask_image=mask,
+            guidance_scale=guidance,
+            num_inference_steps=total_steps,
+            callback=callback,
+            callback_steps=1,
+        )
+
+    output_image = result.images[0].resize(original_size, Image.Resampling.LANCZOS)
+
+    if progress_callback:
+        progress_callback(100)
+
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+    output_image.save(tmp.name)
+    return tmp.name
+
+def run_outpaint(image, directions, prompt=None, progress_callback=None):
+    image = Image.open(image).convert("RGB")
+    w, h = image.size
+
+    x = directions.get("x", 0)
+    y = directions.get("y", 0)
+
+    left = directions.get("left", x)
+    right = directions.get("right", x)
+    top = directions.get("top", y)
+    bottom = directions.get("bottom", y)
+
+    mod_image = Image.new("RGB", (w + left + right, h + top + bottom))
+    mod_image.paste(image, (left, top))
+
+    new_mask = Image.new("L", mod_image.size, 255)
+    new_mask.paste(Image.new("L", (w, h), 0), (left, top))
+
+    return run_inpaint(mod_image, new_mask, prompt, progress_callback)
+
+def run_deblur(image, prompt=None, progress_callback=None):
+    image = Image.open(image).convert("RGB")
+    original_size = image.size
+
+    if not prompt:
+        inputs = caption_processor(image, return_tensors="pt").to(DEVICE)
         with torch.inference_mode():
             result = inpainting_pipe(
                 prompt=prompt,
@@ -155,9 +189,26 @@ def run_inpaint(image_path, mask_path, prompt=None, guidance_scale=7.5,
         traceback.print_exc()
         raise e
 
-def run_outpaint(image_path, directions, prompt=None, guidance_scale=7.5, num_inference_steps=40, seed=-1):
-    """Run outpainting to expand an image in given directions"""
-    print(f"Running outpaint: image={image_path}, directions={directions}, prompt={prompt}")
+    strength = 0.35
+    total_steps = 40
+
+    def callback(step, timestep, latents):
+        if progress_callback:
+            percent = int(((step + 1) / total_steps) * 100)
+            progress_callback(percent)
+
+    with torch.inference_mode():
+        result = deblur_pipe(
+            prompt=prompt,
+            image=image,
+            strength=strength,
+            guidance_scale=4.0,
+            num_inference_steps=total_steps,
+            callback=callback,
+            callback_steps=1,
+        )
+
+    output_image = result.images[0].resize(original_size, Image.Resampling.LANCZOS)
     
     try:
         # Load image
