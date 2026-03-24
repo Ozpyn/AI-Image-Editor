@@ -46,12 +46,19 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
 # These might be changed later to implement Redis, which would allow us to queue jobs.
 # We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
 
-def run_inpaint(image, mask, prompt=None):
+def run_inpaint(image, mask, prompt=None, progress_callback=None):
     image = Image.open(image).convert("RGB")
     mask = Image.open(mask).convert("RGB")
-    original_size = image.size  # Store original dimensions (width, height)
+    original_size = image.size
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
+
+    total_steps = 40
+
+    def callback(step, timestep, latents):
+        if progress_callback:
+            percent = int(((step + 1) / total_steps) * 100)
+            progress_callback(percent)
 
     with torch.inference_mode():
         result = inpainting_pipe(
@@ -59,19 +66,22 @@ def run_inpaint(image, mask, prompt=None):
             image=image,
             mask_image=mask,
             guidance_scale=guidance,
-            num_inference_steps=40,
+            num_inference_steps=total_steps,
+            callback=callback,
+            callback_steps=1,
         )
-    
-    # Resize output back to original image size
+
     output_image = result.images[0].resize(original_size, Image.Resampling.LANCZOS)
-    
-    # Save to a temporary file
+
+    if progress_callback:
+        progress_callback(100)
+
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     output_image.save(tmp.name)
     return tmp.name
 
-def run_outpaint(image, directions, prompt=None):
-    image=Image.open(image).convert("RGB")
+def run_outpaint(image, directions, prompt=None, progress_callback=None):
+    image = Image.open(image).convert("RGB")
     w, h = image.size
 
     x = directions.get("x", 0)
@@ -88,23 +98,25 @@ def run_outpaint(image, directions, prompt=None):
     new_mask = Image.new("L", mod_image.size, 255)
     new_mask.paste(Image.new("L", (w, h), 0), (left, top))
 
-    outpainted = run_inpaint(mod_image, new_mask, prompt)
+    return run_inpaint(mod_image, new_mask, prompt, progress_callback)
 
-    return outpainted
-
-def run_deblur(image, prompt=None):
+def run_deblur(image, prompt=None, progress_callback=None):
     image = Image.open(image).convert("RGB")
-    original_size = image.size  # Store original dimensions (width, height)
+    original_size = image.size
 
-    # Auto-generate caption if no prompt provided
     if not prompt:
         inputs = caption_processor(image, return_tensors="pt").to(DEVICE)
         with torch.inference_mode():
             out = caption_model.generate(**inputs, max_new_tokens=50)
         prompt = caption_processor.decode(out[0], skip_special_tokens=True)
 
-    # Low strength keeps structure, reduces blur
     strength = 0.35
+    total_steps = 40
+
+    def callback(step, timestep, latents):
+        if progress_callback:
+            percent = int(((step + 1) / total_steps) * 100)
+            progress_callback(percent)
 
     with torch.inference_mode():
         result = deblur_pipe(
@@ -112,10 +124,11 @@ def run_deblur(image, prompt=None):
             image=image,
             strength=strength,
             guidance_scale=4.0,
-            num_inference_steps=40,
+            num_inference_steps=total_steps,
+            callback=callback,
+            callback_steps=1,
         )
 
-    # Resize output back to original image size
     output_image = result.images[0].resize(original_size, Image.Resampling.LANCZOS)
     
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
