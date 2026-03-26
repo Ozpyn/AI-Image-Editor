@@ -1,8 +1,5 @@
 sh -c 'set -e
 
-cd frontend &&
-npm install &&
-npm run build &&
 cd ../srv &&
 
 python3 -m venv .venv &&
@@ -13,6 +10,17 @@ if [ -f ".venv/bin/activate" ]; then
 else
     . .venv/Scripts/activate
 fi
+
+cd ../frontend &&
+
+# Node in python environment
+pip install nodeenv &&
+nodeenv env &&
+. env/bin/activate &&
+npm install &&
+npm run build &&
+
+cd ../srv
 
 OS="$(uname 2>/dev/null || echo Windows)"
 ARCH="$(uname -m 2>/dev/null || echo x86_64)"
@@ -27,7 +35,7 @@ if [[ "$OS" == *"MINGW"* || "$OS" == *"MSYS"* || "$OS" == *"CYGWIN"* || "$OS" ==
 
     if where nvidia-smi > /dev/null 2>&1; then
         echo "Windows NVIDIA GPU detected — installing CUDA build"
-        pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 
         echo "Installing rembg with GPU support (CUDA)"
         pip install "rembg[gpu]"
@@ -47,7 +55,7 @@ elif [ "$OS" = "Linux" ]; then
     # NVIDIA
     if [ -e /dev/nvidiactl ] || [ -e /dev/nvidia0 ]; then
         echo "Linux NVIDIA GPU detected — installing CUDA build"
-        pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
 
         echo "Installing rembg with GPU support (CUDA)"
         pip install "rembg[gpu]"
