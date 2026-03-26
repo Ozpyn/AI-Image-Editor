@@ -3,7 +3,7 @@
 
 /* Tailwind v4 theme tokens */
 @theme {
-  --color-bg: #f1f5f9;        /* soft grey background */
+  --color-bg: #ffffff;        /* soft grey background */
   --color-panel: #ffffff;     /* white panels */
   --color-accent: #0ea5e9;    /* soft indigo button contrast */
   --color-menuItem: #0e450e;
