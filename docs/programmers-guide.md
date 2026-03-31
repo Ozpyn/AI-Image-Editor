@@ -40,6 +40,21 @@ Next is a blurb that serves the built Single Page Application (the front end), t
 
 #### The following contains definitions for `ai.py`
 
+`logging.set_verbosity_error()` hides warnings from terminal view when running the program. Comment it out if you wish to see the warnings
+
+`DEVICE` identifies what capabilities the program can used based on the hardware it detects.
+`DTYPE ` determines what kind of float can be used, float16 is better
+
+`run_inpaint()` expects an image as a filepath, a mask as a filepath, an optional prompt, and an optional callback. Using pillow to open the two images it saves them as image objects. It then determines the original image size so the output can be resized back after processing. It assigns a default empty prompt if none is provided and adjusts the guidance scale accordingly, using a lower value when no prompt is given. It uses the previously defined callback and calculates progress as a percentage based on the current step and total number of inference steps. The Stable Diffusion pipeline is then executed in inference mode. The resulting image is resized to the original dimensions, saved to a temporary file, and the file path is returned.
+
+`run_outpaint()` expects an image filepath, a dictionary describing expansion directions, an optional prompt, and an optional callback. It loads the image and reads directional values, supporting both combined (`x`, `y`) (where the direction to expand up and down is the same value y, and left and right is value x) and individual (`left`, `right`, `top`, `bottom`) inputs. A new larger image canvas is created and the original image is pasted into the correct position. A corresponding mask is generated where the original image area is protected and the new regions are marked for generation. The function then calls `run_inpaint()` with the modified image and mask to fill in the expanded regions. Essentially outpainting is being defined as a convolution of inpainting, as such it can utilize inpaint's percentage based callback.
+
+`run_deblur()` expects an image filepath, an optional prompt, and an optional callback. It loads the image and stores its original size. If no prompt is provided, it uses the captioning model to generate a descriptive prompt automatically. It defines a callback similar to `run_inpaint()` to report progress. The image-to-image pipeline is then executed with a low strength value to preserve the original structure while improving clarity. The result is resized back to the original size, saved to a temporary file, and the file path is returned.
+
+`run_describe()` expects an image filepath and converts the image into the required tensor format using the caption processor. It runs the captioning model in inference mode to generate a textual description of the image, decodes the output tokens into a string, and returns the description directly.
+
+`run_remove_background()` expects an image filepath and loads it in RGBA format to preserve transparency. The image is converted into a byte stream and passed to the background removal library. The processed output is converted back into a PIL image, saved to a temporary file, and the file path is returned.
+
 ## Getting Started & Setup
 
 ## Architecture & Design
