@@ -1,9 +1,23 @@
 {/*Lets import our icons from lucide*/}
 import { FileImage,Download, Sparkles, Undo2, Redo2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 
-export default function MenuBar({activeTool, onToolSelect, onAiTest, onExport}) {
+export default function MenuBar({activeTool, onToolSelect, onExport}) {
+  const [aiDropdownOpen, setAiDropdownOpen] = useState(false);
+  const aiMenuRef = useRef(null);
+
+  useEffect(() => {
+    if (!aiDropdownOpen) return;
+    const handleClickOutside = (event) => {
+      if (aiMenuRef.current && !aiMenuRef.current.contains(event.target)) {
+        setAiDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [aiDropdownOpen]);
   return (
-    <header className="h-14 w-full border-b border-white/10 bg-panel/70 backdrop-blur supports-backdrop-filter:bg-panel/50">
+    <header className="relative z-[1200] h-14 w-full border-b border-white/10 bg-panel/70 backdrop-blur supports-backdrop-filter:bg-panel/50">
       <div className="mx-auto flex h-full max-w-400 items-center justify-between px-3 md:px-4">
         {/* Left: App + Menus */}
         <div className="flex items-center gap-3">
@@ -16,13 +30,22 @@ export default function MenuBar({activeTool, onToolSelect, onAiTest, onExport}) 
             <MenuItem label="File" />
             <MenuItem label="Edit" />
             <MenuItem label="Image" />
-            <MenuItem label="AI Tools" badge="Beta" 
-              active = {activeTool ?.startsWith("ai.")}
-              //This is the proper way we will later implement by seting toolmode & using propertiesPanel
-              //but for a taste, let call Ai directly on this menu
-               //onClick={()=>onToolSelect("ai.inpaint")} 
-               onClick={onAiTest}
-               />
+            <div ref={aiMenuRef} className="relative">
+              <MenuItem label="AI Tools" badge="Beta" 
+                active={aiDropdownOpen || activeTool?.startsWith("ai.")}
+                onClick={() => setAiDropdownOpen((prev) => !prev)}
+                 />
+
+              {aiDropdownOpen && (
+                <div className="absolute top-full left-0 mt-1 w-48 bg-panel/90 backdrop-blur border border-white/10 rounded-lg shadow-lg z-[1300]">
+                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.inpaint"); setAiDropdownOpen(false); }}>Inpaint</button>
+                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.outpaint"); setAiDropdownOpen(false); }}>Outpaint</button>
+                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.deblur"); setAiDropdownOpen(false); }}>Deblur</button>
+                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.describe"); setAiDropdownOpen(false); }}>Describe</button>
+                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.replacebg"); setAiDropdownOpen(false); }}>Replace Background</button>
+                </div>
+              )}
+            </div>
           </nav>
         </div>
 

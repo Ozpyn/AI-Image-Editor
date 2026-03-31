@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask_cors import CORS
 import json, os, threading, uuid, time, tempfile
 from io import BytesIO
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background
@@ -7,6 +8,18 @@ app = Flask(
     __name__,
     static_folder="../frontend/dist",
     static_url_path="/"
+)
+
+CORS(
+    app,
+    resources={
+        r"/api/*": {
+            "origins": [
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+            ]
+        }
+    },
 )
 
 task_storage = {}
