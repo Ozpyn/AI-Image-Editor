@@ -26,8 +26,7 @@ const tools = [
   { key: "heal", label: "Heal", icon: Wand2 },
   { key: "cutout", label: "Cutout", icon: Scissors },
   { key: "adjust", label: "Adjust", icon: SlidersHorizontal },
-  // { key: "ai", label: "AI Remove", icon: Sparkles },
-  // { key: "replacebg", label: "AI BG Replace", icon: Wand2 },
+  { key: "ai", label: "AI Remove", icon: Sparkles },
 ];
 
 export default function ToolBox({
@@ -52,54 +51,54 @@ export default function ToolBox({
     canvasActions,
   });
   
-  // const handleRemoveBackground = async () => {
-  //   // Make sure you have access to the canvas (pass it as prop or get from parent)
-  //   if (!window.canvas) return alert("Canvas not initialized");
+  const handleRemoveBackground = async () => {
+    // Make sure you have access to the canvas (pass it as prop or get from parent)
+    if (!window.canvas) return alert("Canvas not initialized");
 
-  //   // Get the first image on the canvas
-  //   const img = window.canvas.getObjects().find((o) => o.type === "image");
-  //   if (!img) return alert("No image on canvas!");
+    // Get the first image on the canvas
+    const img = window.canvas.getObjects().find((o) => o.type === "image");
+    if (!img) return alert("No image on canvas!");
 
-  //   // Convert Fabric image to Blob
-  //   const dataUrl = img.toDataURL({ format: "png" });
-  //   const res = await fetch(dataUrl);
-  //   const blob = await res.blob();
+    // Convert Fabric image to Blob
+    const dataUrl = img.toDataURL({ format: "png" });
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
 
-  //   // Call the AI remove background function
-  //   const bgRemovedUrl = await removeBackground(blob);
-  //   if (!bgRemovedUrl) return;
+    // Call the AI remove background function
+    const bgRemovedUrl = await removeBackground(blob);
+    if (!bgRemovedUrl) return;
 
-  //   // Replace the image in the canvas
-  //   const newImgObj = new Image();
-  //   newImgObj.src = bgRemovedUrl;
-  //   newImgObj.onload = () => {
-  //     const newFabricImg = new fabric.Image(newImgObj, { selectable: true });
-  //     window.canvas.clear();
-  //     window.canvas.add(newFabricImg);
-  //     window.canvas.requestRenderAll();
-  //   };
-  // };
+    // Replace the image in the canvas
+    const newImgObj = new Image();
+    newImgObj.src = bgRemovedUrl;
+    newImgObj.onload = () => {
+      const newFabricImg = new fabric.Image(newImgObj, { selectable: true });
+      window.canvas.clear();
+      window.canvas.add(newFabricImg);
+      window.canvas.requestRenderAll();
+    };
+  };
 
-  // const handleReplaceBackground = async () => {
-  //   if (!canvasActions) {
-  //     return alert("Canvas is not ready yet.");
-  //   }
-  //   if (!bgPrompt.trim()) {
-  //     return alert("Please enter a background prompt.");
-  //   }
+  const handleReplaceBackground = async () => {
+    if (!canvasActions) {
+      return alert("Canvas is not ready yet.");
+    }
+    if (!bgPrompt.trim()) {
+      return alert("Please enter a background prompt.");
+    }
 
-  //   try {
-  //     await replaceBackground({
-  //       prompt: bgPrompt,
-  //       apply: true,
-  //       applyMode: "replace",
-  //     });
-  //     alert("Background replacement applied.");
-  //   } catch (err) {
-  //     console.error(err);
-  //     alert(err?.message || "Background replacement failed.");
-  //   }
-  // };
+    try {
+      await replaceBackground({
+        prompt: bgPrompt,
+        apply: true,
+        applyMode: "replace",
+      });
+      alert("Background replacement applied.");
+    } catch (err) {
+      console.error(err);
+      alert(err?.message || "Background replacement failed.");
+    }
+  };
 
   return (
     <aside
@@ -144,8 +143,8 @@ export default function ToolBox({
                 activeTool === tool.key ? "bg-accent text-white" : "text-gray-200",
               ].join(" ")}
               onClick={() => {
-                onToolSelect(tool.key);
-                // if (tool.key === "ai") handleRemoveBackground(); // trigger your handler
+                onToolSelect(key);
+                if (key === "ai") handleRemoveBackground();
               }}
               type="button"
             >
@@ -192,7 +191,7 @@ export default function ToolBox({
           </div>
         )}
 
-        {/* Background replacement panel
+        {/* Background replacement panel */}
         {!collapsed && activeTool === "replacebg" && (
           <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
             <div className="text-xs font-semibold text-gray-500">Background Replace</div>
@@ -217,7 +216,7 @@ export default function ToolBox({
               <div className="mt-2 text-xs text-red-300">{error}</div>
             )}
           </div>
-        )} */}
+        )}
 
         {/* Mask options panel */}
         {!collapsed && activeTool === "mask" && (
