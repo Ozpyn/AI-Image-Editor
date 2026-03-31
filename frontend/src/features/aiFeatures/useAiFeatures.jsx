@@ -482,6 +482,66 @@ const removeBackground = useCallback(
     }
   };
 
+  const replaceBackground = async (
+    {
+      prompt = "",
+      imageBlob,
+      exportMultiplier = 1,
+      useOriginalSize = true,
+      apply = false,
+      applyMode = "replace",
+    } = {}
+  ) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let blob = imageBlob;
+      if (!blob) {
+        if (!canvasActions?.exportAsPNGBlob) {
+          throw new Error("useAiFeatures: canvasActions.exportAsPNGBlob is missing");
+        }
+        blob = await canvasActions.exportAsPNGBlob(exportMultiplier, useOriginalSize);
+      }
+
+      if (!blob) {
+        throw new Error("No image available for background replacement");
+      }
+
+      const formData = new FormData();
+      formData.append("image", blob, "image.png");
+      formData.append("prompt", prompt);
+
+      const response = await fetch(`${apiBase}/replacebg`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new Error(detail || "Background replacement failed.");
+      }
+
+      const outBlob = await response.blob();
+      if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
+      const url = URL.createObjectURL(outBlob);
+      lastUrlRef.current = url;
+
+      if (apply && canvasActions?.applyBlobResult) {
+        await canvasActions.applyBlobResult(outBlob, { mode: applyMode });
+      }
+
+      return { blob: outBlob, url };
+    } catch (err) {
+      const msg = err?.message || "Background replacement failed.";
+      setError(msg);
+      console.error("Background replacement error:", err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     inpaintFromCanvas,
     outpaintFromCanvas,
