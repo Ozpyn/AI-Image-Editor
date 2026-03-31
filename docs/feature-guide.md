@@ -1,2 +1,2 @@
-[<- Back](../README.md) | [Next (Procedural Instructions) ->](procedure.md)
+[~ Home](../README.md) | [Next (Procedural Instructions) ->](procedure.md)
 

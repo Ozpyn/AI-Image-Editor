@@ -1,2 +1,2 @@
-[<- Back](../README.md) | [Next (Feature Guide) ->](feature-guide.md)
+[~ Home](../README.md) | [Next (Feature Guide) ->](feature-guide.md)
 

@@ -1,2 +1,2 @@
-[<- Back](../README.md) | [Next (Setup) ->](installation.md)
+[~ Home](../README.md) | [Next (Setup) ->](installation.md)
 
