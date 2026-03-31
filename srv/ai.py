@@ -2,17 +2,20 @@ import torch
 from PIL import Image
 from diffusers.utils import load_image
 from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
-from transformers import BlipProcessor, BlipForConditionalGeneration
+from transformers import BlipProcessor, BlipForConditionalGeneration, logging
 from rembg import remove
 import tempfile
 import io
+
+logging.set_verbosity_error()
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
 
 inpainting_pipe = StableDiffusionInpaintPipeline.from_pretrained(
     "runwayml/stable-diffusion-inpainting",
-    torch_dtype=DTYPE
+    torch_dtype=DTYPE,
+    use_safetensors=False
 ).to(DEVICE)
 
 deblur_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
@@ -31,7 +34,7 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
 
 deblur_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
     "runwayml/stable-diffusion-v1-5",
-    torch_dtype=torch.float16
+    torch_dtype=DTYPE
 ).to(DEVICE)
 
 caption_processor = BlipProcessor.from_pretrained(
