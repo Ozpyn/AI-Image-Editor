@@ -1,9 +1,15 @@
-import { PencilBrush, Textbox, IText, Rect } from "fabric";
-import * as fabricNS from "fabric";
+import {
+  Canvas2dFilterBackend,
+  IText,
+  PencilBrush,
+  Point,
+  Rect,
+  Textbox,
+  config,
+  filters as Filters,
+  util,
+} from "fabric";
 import { fabricImageFromURL } from "./loadImage";
-
-// const { PencilBrush, Textbox, IText, Rect } = fabricNS;
-const Filters = fabricNS.filters || fabricNS.fabric?.filters;
 
 
 /**
@@ -14,10 +20,6 @@ function ensure2DFilterBackend() {
   if (__forcedFilterBackend) return;
 
   try {
-    const Canvas2dFilterBackend =
-      fabricNS.Canvas2dFilterBackend || fabricNS.fabric?.Canvas2dFilterBackend;
-    const config = fabricNS.config || fabricNS.fabric?.config;
-
     if (config && "enableGLFiltering" in config) {
       config.enableGLFiltering = false;
     }
@@ -332,8 +334,6 @@ function originOffset(origin, size) {
 }
 
 function canvasPointToImagePixel(img, canvasPoint) {
-  const util = fabricNS.util || fabricNS.fabric?.util;
-  const Point = fabricNS.Point || fabricNS.fabric?.Point;
   if (!util || !Point || !img || !canvasPoint) return null;
 
   const invImg = util.invertTransform(img.calcTransformMatrix());
@@ -840,8 +840,6 @@ export function applyCropToImage(canvas) {
   const img = canvas.getObjects()?.find((o) => o?.type === "image");
   if (!img) return null;
 
-  const util = fabricNS.util || fabricNS.fabric?.util;
-  const Point = fabricNS.Point || fabricNS.fabric?.Point;
   if (!util || !Point) return null;
 
   const rect = cropRect.getBoundingRect(true, true);

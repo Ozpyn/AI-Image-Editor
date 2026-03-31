@@ -1,4 +1,4 @@
-import * as fabric from "fabric";
+import { FabricImage } from "fabric";
 import { useAiFeatures } from "../../features/aiFeatures/useAiFeatures";
 import {
   MousePointer2,
@@ -62,7 +62,7 @@ export default function ToolBox({
   const newImgObj = new Image();
   newImgObj.src = bgRemovedUrl;
   newImgObj.onload = () => {
-    const newFabricImg = new fabric.Image(newImgObj, { selectable: true });
+    const newFabricImg = new FabricImage(newImgObj, { selectable: true });
     window.canvas.clear();
     window.canvas.add(newFabricImg);
     window.canvas.requestRenderAll();
