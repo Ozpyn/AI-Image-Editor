@@ -68,6 +68,7 @@ export default function App() {
           brushSize={brushSize}
           onBrushColorChange={setBrushColor}
           onBrushSizeChange={setBrushSize}
+          canvasActions={canvasActions}
         />
 
         <CanvasArea

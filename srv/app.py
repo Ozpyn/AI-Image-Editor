@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify, send_file, send_from_directory
 ### from flask_cors import CORS
 import json, os, threading, uuid, time, tempfile
 from io import BytesIO
-from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background
+from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background, run_replace_background
 
 app = Flask(
     __name__,
@@ -266,6 +266,19 @@ def remove_background():
 
     try:
         output_path = run_remove_background(request.files["image"])
+        return send_file(output_path, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/replacebg", methods=["POST"])
+def replace_background():
+    if "image" not in request.files:
+        return jsonify({"error": "image is required"}), 400
+
+    prompt = request.form.get("prompt", "")
+    try:
+        output_path = run_replace_background(request.files["image"], prompt)
         return send_file(output_path, mimetype="image/png")
     except Exception as e:
         return jsonify({"error": str(e)}), 500

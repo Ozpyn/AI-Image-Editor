@@ -173,3 +173,28 @@ def run_remove_background(image):
     result.save(tmp.name)
 
     return tmp.name
+
+
+def run_replace_background(image, prompt=None):
+    image = Image.open(image).convert("RGBA")
+    prompt = prompt or "a clean, natural background behind the subject"
+
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format="PNG")
+
+    removed = remove(img_byte_arr.getvalue())
+    foreground = Image.open(io.BytesIO(removed)).convert("RGBA")
+
+    alpha = foreground.split()[-1]
+    mask = alpha.point(lambda a: 255 if a == 0 else 0).convert("RGB")
+    rgb_foreground = foreground.convert("RGB")
+
+    mask_bytes = io.BytesIO()
+    mask.save(mask_bytes, format="PNG")
+    mask_bytes.seek(0)
+
+    fg_bytes = io.BytesIO()
+    rgb_foreground.save(fg_bytes, format="PNG")
+    fg_bytes.seek(0)
+
+    return run_inpaint(fg_bytes, mask_bytes, prompt)
