@@ -1,2 +1,2 @@
-[<- Back](../README.md) | [Next (Use Cases & Examples) ->](uses-examples.md)
+[~ Home](../README.md) | [Next (Use Cases & Examples) ->](uses-examples.md)
 

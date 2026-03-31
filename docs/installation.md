@@ -1,4 +1,4 @@
-[<- Back](../README.md) | [Next (Interface Overview) ->](interface-overview.md)
+[~ Home](../README.md) | [Next (Interface Overview) ->](interface-overview.md)
 
 # How to Install & Run the project:
 
