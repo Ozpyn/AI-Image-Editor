@@ -2,13 +2,11 @@
 
 # How to Install & Run the project:
 
-### Prerequisites
+### Clone the repository
 
-You will need the latest version of the following:
-
-- [python3](https://www.python.org/downloads/) and Python3-venv (if not included in python3)
-- Some kind of web browser
-
+```
+git clone https://github.com/Ozpyn/AI-Image-Editor.git
+```
 
 ### Running the project
 There exists a `run.sh` script in the root of the directory, it has been written to cover the following configurations:
