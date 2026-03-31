@@ -57,6 +57,61 @@ Next is a blurb that serves the built Single Page Application (the front end), t
 
 ## Getting Started & Setup
 
+### System Requirements
+
+- [python3](https://www.python.org/downloads/) and Python3-venv (if not included in python3)
+- git
+- Some kind of web browser
+- Optional: [NodeJS](https://nodejs.org/en/download/) (includes npm)
+
+While optional, it is highly recommended to have a dedicated CUDA capable processing unit (e.g. an NVIDIA GPU)
+
+### Clone the repository
+
+```
+git clone https://github.com/Ozpyn/AI-Image-Editor.git
+```
+
+### Running the project
+
+While not strictly required, I would recommend setting up and enabling a python virtual environment, purely so that this project will be isolated and will not affect your system packages.
+
+This project supports two options for node, an official installation that includes npm (listed above) or a python package called `nodeenv`. `nodeenv` allows you to treat node like a python virtual environment, completely isolated.
+
+To install nodeenv:
+```
+pip install nodeenv
+```
+
+Build and enable the nodeenv:
+```
+cd frontent/ &&
+nodeenv env &&
+source env/bin/activate
+```
+
+The main difference between development and production environments is the way in which the front end is made: build or dev.
+
+```
+npm install &&
+npm run dev
+```
+
+It is recommended to open another terminal, repeating the previous steps in order to run the backend.
+
+At this point you should install pytorch for your specific hardware: [PyTorch](https://pytorch.org/get-started/locally/)
+You will also need to choose and install Rembg for your hardware: [Rembg](https://github.com/danielgatis/rembg)
+
+You now only need a few more packages, all of which exist in requirements.txt:
+```
+pip install -r srv/requirements.txt
+```
+Last, but certainly not least, you need to run the backend: 
+```
+python3 srv/app.py
+```
+
+
 ## Architecture & Design
 
 ## Technical Documentation
