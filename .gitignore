@@ -12,6 +12,7 @@ frontend/dist
 frontend/dist-ssr
 frontend/*.local
 frontend/.vite
+frontend/env
 
 # Editor directories and files
 .vscode/*

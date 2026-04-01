@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
+### from flask_cors import CORS
 import json, os, threading, uuid, time, tempfile
 from io import BytesIO
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background, run_replace_background
@@ -9,9 +10,31 @@ app = Flask(
     static_url_path="/"
 )
 
+### ### Please stop pushing changes with this enabled, it breaks things
+###
+### CORS(
+###     app,
+###     resources={
+###         r"/api/*": {
+###             "origins": [
+###                 "http://localhost:5173",
+###                 "http://127.0.0.1:5173",
+###             ]
+###        }
+###     },
+### )
+
 task_storage = {}
 MAX_TASK_AGE = 3600  # Keep completed tasks for 1 hour
 task_lock = threading.Lock()
+
+# Task completion estimate helper
+def make_progress_callback(task_id):
+    def progress_update(p):
+        with task_lock:
+            if task_id in task_storage:
+                task_storage[task_id]["progress"] = p
+    return progress_update
 
 # Serve SPA
 @app.route("/", defaults={"path": ""})
@@ -70,10 +93,12 @@ def inpaint():
     prompt = request.form.get("prompt")
     
     def run():
+        progress_callback = make_progress_callback(task_id)
         output_path = run_inpaint(
             open(img_tmp.name, "rb"),
             open(mask_tmp.name, "rb"),
-            prompt
+            prompt,
+            progress_callback=progress_callback
         )
         with open(output_path, "rb") as f:
             result = f.read()
@@ -115,10 +140,12 @@ def outpaint():
     prompt = request.form.get("prompt")
     
     def run():
+        progress_callback = make_progress_callback(task_id)
         output_path = run_outpaint(
             open(img_tmp.name, "rb"),
             directions_data,
-            prompt
+            prompt,
+            progress_callback=progress_callback
         )
         with open(output_path, "rb") as f:
             result = f.read()
@@ -155,9 +182,11 @@ def deblur():
     prompt = request.form.get("prompt")
     
     def run():
+        progress_callback = make_progress_callback(task_id)
         output_path = run_deblur(
             open(img_tmp.name, "rb"),
-            prompt
+            prompt,
+            progress_callback=progress_callback
         )
         with open(output_path, "rb") as f:
             result = f.read()
@@ -179,7 +208,7 @@ def desc():
     if "image" not in request.files:
         return jsonify({"error": "image is required"}), 400
 
-    # This one is fast, no need for async
+    # This one is fast, no need for async or for a progress updater
     description = run_describe(request.files["image"])
     return jsonify({"description": description}), 200
 
@@ -193,15 +222,18 @@ def get_task(task_id):
         
         task = task_storage[task_id]
         
-        if task["status"] == "processing":
-            return jsonify({"status": "processing"}), 202
-        elif task["status"] == "completed":
-            return send_file(
-                BytesIO(task["result"]),
-                mimetype="image/png"
-            )
-        elif task["status"] == "failed":
-            return jsonify({"error": task["error"]}), 500
+        match task["status"]:
+            case "processing":
+                return jsonify({
+                    "status": "processing",
+                    "progress": task.get("progress", 0)
+                }), 202
+            case "completed":
+                return send_file(BytesIO(task["result"]), mimetype="image/png")
+            case "failed":
+                return jsonify({"error": task["error"]}), 500
+            case _:
+                return jsonify({"error": "Unknown task status"}), 500
 
 
 def cleanup_old_tasks():

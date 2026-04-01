@@ -27,20 +27,6 @@ async function getSize(blob) {
 }
 
 /**
- * Download a blob as a file to the user's local machine
- */
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-/**
  * AI hook (client-side)
  * Requires canvas "actions" from useCanvas:
  *  - exportAsPNGBlob(multiplier)
@@ -49,6 +35,10 @@ function downloadBlob(blob, filename) {
  */
 export function useAiFeatures({
   apiBase = `${window.location.origin}/api`,
+
+  // // Please stop pushing changes with this enabled, it breaks things.
+  // apiBase = "http://localhost:8000/api",
+
   canvasActions, // { exportAsPNGBlob, exportAsMaskBlob, applyBlobResult }
 } = {}) {
   const [loading, setLoading] = useState(false);
@@ -239,9 +229,7 @@ export function useAiFeatures({
     async (
       {
         prompt,
-        guidance_scale,
-        steps,
-        seed,
+        directions,
         exportMultiplier = 2,
         apply = true,
         applyMode = "replace",
@@ -258,11 +246,10 @@ export function useAiFeatures({
         const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier);
         if (!imageBlob) throw new Error("Failed to export canvas image");
 
-        const fd = createFormData(prompt, imageBlob, null, {
-          guidance_scale,
-          steps,
-          seed,
-        });
+        const fd = new FormData();
+        fd.append("image", imageBlob, "image.png");
+        fd.append("directions", JSON.stringify(directions));
+        if (prompt) fd.append("prompt", prompt);
 
         const outBlob = await fetchBlob("/outpaint", fd);
 
@@ -284,39 +271,156 @@ export function useAiFeatures({
         setLoading(false);
       }
     },
-    [canvasActions, createFormData, fetchBlob]
+    [canvasActions, fetchBlob]
   );
 
   // AI Action: Background Removal
-  const removeBackground = async (image) => {
+ // In useAiFeatures.js, update the removeBackground function:
+
+const removeBackground = useCallback(
+  async (
+    {
+      imageBlob,
+      apply = true,
+      applyMode = "replace",
+    } = {}
+  ) => {
+    if (!imageBlob) {
+      throw new Error("removeBackground: imageBlob is required");
+    }
+    
     setLoading(true);
     setError(null);
-
+    
     try {
-      const formData = new FormData();
-      formData.append("image", image);
-
-      const response = await fetch(`${apiBase}/removebg`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Background removal failed.");
+      const fd = new FormData();
+      fd.append("image", imageBlob, "image.png");
+      
+      // Use fetchBlob like the other functions
+      const outBlob = await fetchBlob("/removebg", fd);
+      
+      if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
+      const url = URL.createObjectURL(outBlob);
+      lastUrlRef.current = url;
+      
+      if (apply && canvasActions?.applyBlobResult) {
+        await canvasActions.applyBlobResult(outBlob, { mode: applyMode });
       }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      return url; // Returns the image URL with background removed
-
+      
+      return { blob: outBlob, url };
     } catch (err) {
-      setError(err.message);
+      const msg = err?.message || "Background removal failed";
+      setError(msg);
       console.error("Background removal error:", err);
       throw err;
     } finally {
       setLoading(false);
     }
-  };
+  },
+  [canvasActions, fetchBlob]
+);
+
+  /**
+   * Deblur using current Fabric canvas state:
+   * - exports image blob
+   * - calls /deblur
+   * - optionally applies to canvas
+   */
+  const deblurFromCanvas = useCallback(
+    async (
+      {
+        prompt,
+        exportMultiplier = 1,
+        apply = true,
+        applyMode = "replace",
+      } = {}
+    ) => {
+      if (!canvasActions?.exportAsPNGBlob) {
+        throw new Error("useAiFeatures: canvasActions.exportAsPNGBlob is missing");
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier);
+        if (!imageBlob) throw new Error("Failed to export canvas image");
+
+        const fd = new FormData();
+        fd.append("image", imageBlob, "image.png");
+        if (prompt) fd.append("prompt", prompt);
+
+        const outBlob = await fetchBlob("/deblur", fd);
+
+        if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
+        const url = URL.createObjectURL(outBlob);
+        lastUrlRef.current = url;
+
+        if (apply && canvasActions?.applyBlobResult) {
+          await canvasActions.applyBlobResult(outBlob, { mode: applyMode });
+        }
+
+        return { blob: outBlob, url };
+      } catch (err) {
+        const msg = err?.message || "Deblurring failed";
+        setError(msg);
+        console.error("Deblurring error:", err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [canvasActions, fetchBlob]
+  );
+
+  /**
+   * Describe image using current Fabric canvas state:
+   * - exports image blob
+   * - calls /describeme
+   * - returns description text
+   */
+  const describeFromCanvas = useCallback(
+    async (
+      {
+        exportMultiplier = 1,
+      } = {}
+    ) => {
+      if (!canvasActions?.exportAsPNGBlob) {
+        throw new Error("useAiFeatures: canvasActions.exportAsPNGBlob is missing");
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const imageBlob = await canvasActions.exportAsPNGBlob(exportMultiplier);
+        if (!imageBlob) throw new Error("Failed to export canvas image");
+
+        const fd = new FormData();
+        fd.append("image", imageBlob, "image.png");
+
+        const res = await fetch(`${apiBase}/describeme`, {
+          method: "POST",
+          body: fd,
+        });
+
+        if (!res.ok) {
+          throw new Error(`Describe failed: ${res.status}`);
+        }
+
+        const data = await res.json();
+        return data.description;
+      } catch (err) {
+        const msg = err?.message || "Describing failed";
+        setError(msg);
+        console.error("Describing error:", err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [canvasActions, apiBase]
+  );
 
   const replaceBackground = async (
     {
@@ -381,6 +485,8 @@ export function useAiFeatures({
   return {
     inpaintFromCanvas,
     outpaintFromCanvas,
+    deblurFromCanvas,
+    describeFromCanvas,
     removeBackground,
     replaceBackground,
     loading,

@@ -11,13 +11,29 @@ export default function App() {
   const [propertiesOpen, setPropertiesOpen] = useState(true);
   const [activeTool, setActiveTool] = useState("select");
 
+  // Brush options
   const [brushColor, setBrushColor] = useState("#ff3b30");
   const [brushSize, setBrushSize] = useState(12);
+
+  // Heal options
+  const [healFlow, setHealFlow] = useState(0.45);
 
   // Image adjustment options (Fabric filters expect -1..1)
   const [brightness, setBrightness] = useState(0);
   const [contrast, setContrast] = useState(0);
   const [saturation, setSaturation] = useState(0);
+
+  // AI options
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiGuidanceScale, setAiGuidanceScale] = useState(6.5);
+  const [aiSteps, setAiSteps] = useState(30);
+  const [aiSeed, setAiSeed] = useState(-1);
+  const [outpaintDirections, setOutpaintDirections] = useState({
+    left: false,
+    right: false,
+    top: false,
+    bottom: false,
+  });
 
   const [canvasActions, setCanvasActions] = useState(null);
 
@@ -27,20 +43,11 @@ export default function App() {
   const ai = useAiFeatures({
     canvasActions,
   });
+  // Export trigger
+  const [exportRequestId, setExportRequestId] = useState(0);
 
-  const onAiTest = async () => {
-    setActiveTool("ai.inpaint");
-
-    if (!canvasActions) {
-      alert("Canvas not ready yet.");
-      return;
-    }
-
-    await ai.inpaintFromCanvas({
-      prompt: "remove the object, realistic background",
-      apply: true,
-      applyMode: "replace",
-    });
+  const handleExport = () => {
+    setExportRequestId((prev) => prev + 1);
   };
 
   return (
@@ -48,7 +55,7 @@ export default function App() {
       <MenuBar
         activeTool={activeTool}
         onToolSelect={handleToolSelect}
-        onAiTest={onAiTest}
+        onExport={handleExport}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -68,7 +75,9 @@ export default function App() {
           activeTool={activeTool}
           brushColor={brushColor}
           brushSize={brushSize}
+          healFlow={healFlow}
           adjustments={{ brightness, contrast, saturation }}
+          exportRequestId={exportRequestId}
           onCanvasActionsReady={setCanvasActions}
         />
 
@@ -81,12 +90,25 @@ export default function App() {
             onBrushColorChange={setBrushColor}
             brushSize={brushSize}
             onBrushSizeChange={setBrushSize}
+            healFlow={healFlow}
+            onHealFlowChange={setHealFlow}
             brightness={brightness}
             onBrightnessChange={setBrightness}
             contrast={contrast}
             onContrastChange={setContrast}
             saturation={saturation}
             onSaturationChange={setSaturation}
+            ai={ai}
+            aiPrompt={aiPrompt}
+            onAiPromptChange={setAiPrompt}
+            aiGuidanceScale={aiGuidanceScale}
+            onAiGuidanceScaleChange={setAiGuidanceScale}
+            aiSteps={aiSteps}
+            onAiStepsChange={setAiSteps}
+            aiSeed={aiSeed}
+            onAiSeedChange={setAiSeed}
+            outpaintDirections={outpaintDirections}
+            onOutpaintDirectionsChange={setOutpaintDirections}
           />
         </div>
       </div>
