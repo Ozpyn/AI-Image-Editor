@@ -1,3 +1,4 @@
+import { useState } from "react";
 import * as fabric from "fabric";
 import { useAiFeatures } from "../../features/aiFeatures/useAiFeatures";
 import {
@@ -25,7 +26,8 @@ const tools = [
   { key: "heal", label: "Heal", icon: Wand2 },
   { key: "cutout", label: "Cutout", icon: Scissors },
   { key: "adjust", label: "Adjust", icon: SlidersHorizontal },
-  { key: "ai", label: "AI Remove", icon: Sparkles },
+  // { key: "ai", label: "AI Remove", icon: Sparkles },
+  // { key: "replacebg", label: "AI BG Replace", icon: Wand2 },
 ];
 
 export default function ToolBox({
@@ -37,42 +39,67 @@ export default function ToolBox({
   brushSize,
   onBrushColorChange,
   onBrushSizeChange,
+  canvasActions,
 }) {
+  const [bgPrompt, setBgPrompt] = useState("a bright modern interior behind the subject");
 
-  const { removeBackground } = useAiFeatures();
+  const { inpaintFromCanvas, removeBackground, replaceBackground, loading, error } = useAiFeatures({
+    canvasActions,
+  });
   
-  const handleRemoveBackground = async () => {
-  // Make sure you have access to the canvas (pass it as prop or get from parent)
-  if (!window.canvas) return alert("Canvas not initialized");
+  // const handleRemoveBackground = async () => {
+  //   // Make sure you have access to the canvas (pass it as prop or get from parent)
+  //   if (!window.canvas) return alert("Canvas not initialized");
 
-  // Get the first image on the canvas
-  const img = window.canvas.getObjects().find((o) => o.type === "image");
-  if (!img) return alert("No image on canvas!");
+  //   // Get the first image on the canvas
+  //   const img = window.canvas.getObjects().find((o) => o.type === "image");
+  //   if (!img) return alert("No image on canvas!");
 
-  // Convert Fabric image to Blob
-  const dataUrl = img.toDataURL({ format: "png" });
-  const res = await fetch(dataUrl);
-  const blob = await res.blob();
+  //   // Convert Fabric image to Blob
+  //   const dataUrl = img.toDataURL({ format: "png" });
+  //   const res = await fetch(dataUrl);
+  //   const blob = await res.blob();
 
-  // Call the AI remove background function
-  const bgRemovedUrl = await removeBackground(blob);
-  if (!bgRemovedUrl) return;
+  //   // Call the AI remove background function
+  //   const bgRemovedUrl = await removeBackground(blob);
+  //   if (!bgRemovedUrl) return;
 
-  // Replace the image in the canvas
-  const newImgObj = new Image();
-  newImgObj.src = bgRemovedUrl;
-  newImgObj.onload = () => {
-    const newFabricImg = new fabric.Image(newImgObj, { selectable: true });
-    window.canvas.clear();
-    window.canvas.add(newFabricImg);
-    window.canvas.requestRenderAll();
-  };
-};
+  //   // Replace the image in the canvas
+  //   const newImgObj = new Image();
+  //   newImgObj.src = bgRemovedUrl;
+  //   newImgObj.onload = () => {
+  //     const newFabricImg = new fabric.Image(newImgObj, { selectable: true });
+  //     window.canvas.clear();
+  //     window.canvas.add(newFabricImg);
+  //     window.canvas.requestRenderAll();
+  //   };
+  // };
+
+  // const handleReplaceBackground = async () => {
+  //   if (!canvasActions) {
+  //     return alert("Canvas is not ready yet.");
+  //   }
+  //   if (!bgPrompt.trim()) {
+  //     return alert("Please enter a background prompt.");
+  //   }
+
+  //   try {
+  //     await replaceBackground({
+  //       prompt: bgPrompt,
+  //       apply: true,
+  //       applyMode: "replace",
+  //     });
+  //     alert("Background replacement applied.");
+  //   } catch (err) {
+  //     console.error(err);
+  //     alert(err?.message || "Background replacement failed.");
+  //   }
+  // };
 
   return (
     <aside
       className={[
-        "h-full border-r border-white/10 bg-panel/60 backdrop-blur supports-backdrop-filter:bg-panel/40",
+        "h-full min-h-0 flex flex-col overflow-hidden border-r border-white/10 bg-panel/60 backdrop-blur supports-backdrop-filter:bg-panel/40",
         collapsed ? "w-16" : "w-64",
         "transition-[width] duration-200 ease-out",
         "shrink-0",
@@ -98,7 +125,7 @@ export default function ToolBox({
         </button>
       </div>
 
-      <div className="px-2 pb-3">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-3">
         <div className="space-y-1">
           {tools.map((tool) => (
             <button
@@ -111,7 +138,7 @@ export default function ToolBox({
               ].join(" ")}
               onClick={() => {
                 onToolSelect(tool.key);
-                if (tool.key === "ai") handleRemoveBackground(); // trigger your handler
+                // if (tool.key === "ai") handleRemoveBackground(); // trigger your handler
               }}
               type="button"
             >
@@ -122,7 +149,7 @@ export default function ToolBox({
                 </span>
               )}
             </button>
-        ))}
+          ))}
         </div>
 
         {/* Brush options panel  */}
@@ -156,6 +183,33 @@ export default function ToolBox({
             </div>
           </div>
         )}
+
+        {/* Background replacement panel
+        {!collapsed && activeTool === "replacebg" && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+            <div className="text-xs font-semibold text-gray-500">Background Replace</div>
+            <div className="mt-3 text-xs text-gray-500">
+              Enter a prompt describing the background you want behind the subject.
+            </div>
+            <textarea
+              value={bgPrompt}
+              onChange={(e) => setBgPrompt(e.target.value)}
+              className="mt-3 w-full rounded-lg border border-white/10 bg-black/70 p-2 text-sm text-gray-100 focus:border-white focus:outline-none"
+              rows={3}
+            />
+            <button
+              type="button"
+              onClick={handleReplaceBackground}
+              disabled={loading}
+              className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:bg-accent-dark disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? "Applying…" : "Replace Background"}
+            </button>
+            {error && (
+              <div className="mt-2 text-xs text-red-300">{error}</div>
+            )}
+          </div>
+        )} */}
 
         {/* Mask options panel */}
         {!collapsed && activeTool === "mask" && (
