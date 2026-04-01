@@ -1,4 +1,4 @@
-import { Layers, SlidersHorizontal, Brush, Wand2 } from "lucide-react";
+import { Layers, SlidersHorizontal, Brush, Wand2, Sparkles } from "lucide-react";
 
 export default function PropertiesPanel({
   open,
@@ -40,7 +40,7 @@ export default function PropertiesPanel({
   const isOutpaintTool = activeTool === "ai.outpaint";
   const isDeblurTool = activeTool === "ai.deblur";
   const isDescribeTool = activeTool === "ai.describe";
-  const isReplaceBgTool = activeTool === "ai.replacebg";
+  const isBackgroundMagicTool = activeTool === "ai.backgroundmagic";
 
   return (
     <aside
@@ -370,32 +370,103 @@ export default function PropertiesPanel({
           </PanelCard>
         )}
 
-        {isReplaceBgTool && (
-          <PanelCard title="Replace Background" icon={<Wand2 className="h-4 w-4" />}>
-            <div className="space-y-4">
-              <div>
-                <div className="text-xs text-gray-600">New Background Prompt</div>
-                <textarea
-                  value={aiPrompt}
-                  onChange={(e) => onAiPromptChange?.(e.target.value)}
-                  placeholder="Describe the new background..."
-                  className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
-                  rows={3}
-                />
-              </div>
-              <button
-                onClick={() => {
-                  // Note: This would need to be implemented with the removebg API + background generation
-                  alert("Replace Background feature coming soon!");
-                }}
-                disabled={!aiPrompt.trim()}
-                className="w-full rounded-lg bg-blue-500 px-3 py-2 text-sm text-white hover:bg-blue-600 disabled:opacity-50"
-              >
-                Apply Background Replacement
-              </button>
-            </div>
-          </PanelCard>
-        )}
+        
+{isBackgroundMagicTool && (
+  <PanelCard title="Background Magic" icon={<Sparkles className="h-4 w-4" />}>
+    <div className="space-y-4">
+      {/* Remove Background Section */}
+      <div className="border-b border-gray-200 pb-3">
+        <div className="text-xs font-semibold text-gray-700 mb-2">Remove Background</div>
+
+          <button
+            onClick={async () => {
+              try {
+                const canvas = window.canvas;
+                if (!canvas) throw new Error("Canvas not initialized");
+                
+                const img = canvas.getObjects().find((o) => o.type === "image");
+                if (!img) throw new Error("No image on canvas!");
+                
+                const dataUrl = img.toDataURL({ format: "png" });
+                const res = await fetch(dataUrl);
+                const blob = await res.blob();
+                
+                // Call removeBackground with the blob
+                await ai?.removeBackground({
+                  imageBlob: blob,
+                  apply: true,
+                  applyMode: "replace"
+                });
+              } catch (err) {
+                alert(`Error: ${err.message}`);
+              }
+            }}
+            disabled={ai?.loading}
+            className="w-full rounded-lg bg-purple-500 px-3 py-2 text-sm text-white hover:bg-purple-600 disabled:opacity-50"
+          >
+            {ai?.loading ? "Processing..." : "Remove Background"}
+          </button>
+      </div>
+
+      {/* Replace Background Section */}
+      <div>
+        <div className="text-xs font-semibold text-gray-700 mb-2">Replace Background</div>
+        <div className="text-xs text-gray-600 mb-2">Prompt</div>
+        <textarea
+          value={aiPrompt}
+          onChange={(e) => onAiPromptChange?.(e.target.value)}
+          placeholder="Describe the new background (e.g., 'beach at sunset', 'modern office', 'forest path')..."
+          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+          rows={3}
+        />
+        <button
+          onClick={async () => {
+            if (!aiPrompt?.trim()) {
+              alert("Please enter a prompt for the new background");
+              return;
+            }
+            
+            try {
+              const canvas = window.canvas;
+              if (!canvas) throw new Error("Canvas not initialized");
+              
+              const img = canvas.getObjects().find((o) => o.type === "image");
+              if (!img) throw new Error("No image on canvas!");
+              
+              const dataUrl = img.toDataURL({ format: "png" });
+              const res = await fetch(dataUrl);
+              const blob = await res.blob();
+              
+              // First remove background
+              const result = await ai?.removeBackground({
+                imageBlob: blob,
+                apply: false, // Don't apply yet, we'll apply after replacement
+                applyMode: "replace"
+              });
+              
+              if (result?.blob) {
+                // TODO: Add replace background API endpoint
+                // For now, just apply the background-removed image
+                await ai?.canvasActions?.applyBlobResult(result.blob, { mode: "replace" });
+                alert("Background removed! Replace with AI-generated background coming soon!");
+              }
+            } catch (err) {
+              alert(`Error: ${err.message}`);
+            }
+          }}
+          disabled={ai?.loading || !aiPrompt?.trim()}
+          className="w-full rounded-lg bg-blue-500 px-3 py-2 text-sm text-white hover:bg-blue-600 disabled:opacity-50"
+        >
+          {ai?.loading ? "Processing..." : "Remove & Replace Background"}
+        </button>
+      </div>
+      
+      <div className="text-[11px] text-gray-500 mt-2">
+        Remove background completely, or replace it with an AI-generated background based on your prompt.
+      </div>
+    </div>
+  </PanelCard>
+)}
 
         <PanelCard title="Layers" icon={<Layers className="h-4 w-4" />}>
           <div className="text-xs text-gray-600">

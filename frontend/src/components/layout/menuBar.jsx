@@ -1,5 +1,5 @@
 {/*Lets import our icons from lucide*/}
-import { FileImage,Download, Sparkles, Undo2, Redo2 } from "lucide-react";
+import { FileImage,Download, Sparkles, Undo2, Redo2, ChevronDown } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 
 export default function MenuBar({activeTool, onToolSelect, onExport}) {
@@ -31,9 +31,10 @@ export default function MenuBar({activeTool, onToolSelect, onExport}) {
             <MenuItem label="Edit" />
             <MenuItem label="Image" />
             <div ref={aiMenuRef} className="relative">
-              <MenuItem label="AI Tools" badge="Beta" 
+              <MenuItem label="AI Tools" 
                 active={aiDropdownOpen || activeTool?.startsWith("ai.")}
                 onClick={() => setAiDropdownOpen((prev) => !prev)}
+                icon={<ChevronDown className={`h-3.5 w-3.5 transition-transform ${aiDropdownOpen ? 'rotate-180' : ''}`} />}
                  />
 
               {aiDropdownOpen && (
@@ -41,8 +42,8 @@ export default function MenuBar({activeTool, onToolSelect, onExport}) {
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.inpaint"); setAiDropdownOpen(false); }}>Inpaint</button>
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.outpaint"); setAiDropdownOpen(false); }}>Outpaint</button>
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.deblur"); setAiDropdownOpen(false); }}>Deblur</button>
-                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.describe"); setAiDropdownOpen(false); }}>Describe</button>
-                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.replacebg"); setAiDropdownOpen(false); }}>Replace Background</button>
+                  {/* <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.describe"); setAiDropdownOpen(false); }}>Describe</button> */}
+                  <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.backgroundmagic"); setAiDropdownOpen(false); }}>Background Magic</button>
                 </div>
               )}
             </div>
@@ -70,7 +71,7 @@ export default function MenuBar({activeTool, onToolSelect, onExport}) {
   );
 }
 
-function MenuItem({ label, badge, onClick, active }) { //A menu item gives u onClick
+function MenuItem({ label, badge, onClick, active , icon}) { //A menu item gives u onClick
   return (
     <button
       type="button"
@@ -86,6 +87,7 @@ function MenuItem({ label, badge, onClick, active }) { //A menu item gives u onC
           {badge}
         </span>
       ) : null}
+       {icon && <span className="inline-flex">{icon}</span>}
     </button>
   );
 }

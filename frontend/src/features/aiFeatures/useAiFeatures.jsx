@@ -273,35 +273,50 @@ export function useAiFeatures({
   );
 
   // AI Action: Background Removal
-  const removeBackground = async (image) => {
+ // In useAiFeatures.js, update the removeBackground function:
+
+const removeBackground = useCallback(
+  async (
+    {
+      imageBlob,
+      apply = true,
+      applyMode = "replace",
+    } = {}
+  ) => {
+    if (!imageBlob) {
+      throw new Error("removeBackground: imageBlob is required");
+    }
+    
     setLoading(true);
     setError(null);
-
+    
     try {
-      const formData = new FormData();
-      formData.append("image", image);
-
-      const response = await fetch(`${apiBase}/removebg`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Background removal failed.");
+      const fd = new FormData();
+      fd.append("image", imageBlob, "image.png");
+      
+      // Use fetchBlob like the other functions
+      const outBlob = await fetchBlob("/removebg", fd);
+      
+      if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
+      const url = URL.createObjectURL(outBlob);
+      lastUrlRef.current = url;
+      
+      if (apply && canvasActions?.applyBlobResult) {
+        await canvasActions.applyBlobResult(outBlob, { mode: applyMode });
       }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      return url; // Returns the image URL with background removed
-
+      
+      return { blob: outBlob, url };
     } catch (err) {
-      setError(err.message);
+      const msg = err?.message || "Background removal failed";
+      setError(msg);
       console.error("Background removal error:", err);
       throw err;
     } finally {
       setLoading(false);
     }
-  };
+  },
+  [canvasActions, fetchBlob]
+);
 
   /**
    * Deblur using current Fabric canvas state:
