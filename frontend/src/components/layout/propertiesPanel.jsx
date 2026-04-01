@@ -425,33 +425,19 @@ export default function PropertiesPanel({
               alert("Please enter a prompt for the new background");
               return;
             }
-            
+            if (!window.canvas) throw new Error("Canvas not initialized");
+            if (!canvas.getObjects().find((o) => o.type === "image")) throw new Error("No image on canvas!");
+
             try {
-              const canvas = window.canvas;
-              if (!canvas) throw new Error("Canvas not initialized");
-              
-              const img = canvas.getObjects().find((o) => o.type === "image");
-              if (!img) throw new Error("No image on canvas!");
-              
-              const dataUrl = img.toDataURL({ format: "png" });
-              const res = await fetch(dataUrl);
-              const blob = await res.blob();
-              
-              // First remove background
-              const result = await ai?.removeBackground({
-                imageBlob: blob,
-                apply: false, // Don't apply yet, we'll apply after replacement
-                applyMode: "replace"
+              await ai?.replaceBackground({
+                prompt: aiPrompt,
+                apply: true,
+                applyMode: "replace",
               });
-              
-              if (result?.blob) {
-                // TODO: Add replace background API endpoint
-                // For now, just apply the background-removed image
-                await ai?.canvasActions?.applyBlobResult(result.blob, { mode: "replace" });
-                alert("Background removed! Replace with AI-generated background coming soon!");
-              }
+              alert("Background replacement applied.");
             } catch (err) {
-              alert(`Error: ${err.message}`);
+              console.error(err);
+              alert(err?.message || "Background replacement failed.");
             }
           }}
           disabled={ai?.loading || !aiPrompt?.trim()}
