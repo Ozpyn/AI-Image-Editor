@@ -39,7 +39,7 @@ export default function ToolBox({
   onBrushSizeChange,
 }) {
 
-  const { inpaintFromCanvas, removeBackground, loading, error } = useAiFeatures();
+  const { removeBackground } = useAiFeatures();
   
   const handleRemoveBackground = async () => {
   // Make sure you have access to the canvas (pass it as prop or get from parent)
@@ -100,25 +100,25 @@ export default function ToolBox({
 
       <div className="px-2 pb-3">
         <div className="space-y-1">
-          {tools.map(({ key, label, icon: Icon }) => (
+          {tools.map((tool) => (
             <button
-              key={key}
+              key={tool.key}
               className={[
                 "group flex w-full items-center gap-3 rounded-lg px-3 py-2",
                 "hover:bg-white/10 active:bg-white/15",
                 "text-left",
-                activeTool === key ? "bg-accent text-white" : "text-gray-200",
+                activeTool === tool.key ? "bg-accent text-white" : "text-gray-200",
               ].join(" ")}
               onClick={() => {
-                onToolSelect(key);
-                if (key === "ai") handleRemoveBackground(); // trigger your handler
+                onToolSelect(tool.key);
+                if (tool.key === "ai") handleRemoveBackground(); // trigger your handler
               }}
               type="button"
             >
-              <Icon className="h-4 w-4 text-gray-200" />
+              <tool.icon className="h-4 w-4 text-gray-200" />
               {!collapsed && (
                 <span className="text-sm text-gray-200 group-hover:text-white">
-                  {label}
+                  {tool.label}
                 </span>
               )}
             </button>
