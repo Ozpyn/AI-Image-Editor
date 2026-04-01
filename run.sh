@@ -1,21 +1,22 @@
-sh -c 'set -e
-
-python3 -m venv srv/.venv &&
+python3 -m venv srv/.venv
 
 if [ -f "srv/.venv/bin/activate" ]; then
-    . srv/.venv/bin/activate
+    source srv/.venv/bin/activate
 else
-    . srv/.venv/Scripts/activate
+    source srv/.venv/Scripts/activate
 fi
 
-cd frontend &&
+cd frontend
 
-# Node in python environment
-pip install nodeenv -q &&
-nodeenv env &&
-. env/bin/activate &&
-npm install &&
-npm run build &&
+pip install nodeenv -q
+
+nodeenv env
+
+source env/bin/activate
+
+npm install
+
+npm run build
 
 OS="$(uname 2>/dev/null || echo Windows)"
 ARCH="$(uname -m 2>/dev/null || echo x86_64)"
@@ -91,7 +92,7 @@ else
     pip install "rembg[cpu]" -q
 fi
 
-pip install -r ../srv/requirements.txt -q &&
-echo "Requirements Installed" &&
-echo "Running App" &&
-python3 ../srv/app.py'
+pip install -r ../srv/requirements.txt -q
+echo "Requirements Installed"
+echo "Running App"
+python3 ../srv/app.py
