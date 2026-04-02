@@ -23,6 +23,18 @@ export default function App() {
   const [contrast, setContrast] = useState(0);
   const [saturation, setSaturation] = useState(0);
 
+  // AI options
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiGuidanceScale, setAiGuidanceScale] = useState(6.5);
+  const [aiSteps, setAiSteps] = useState(30);
+  const [aiSeed, setAiSeed] = useState(-1);
+  const [outpaintDirections, setOutpaintDirections] = useState({
+    left: false,
+    right: false,
+    top: false,
+    bottom: false,
+  });
+
   const [canvasActions, setCanvasActions] = useState(null);
 
   const handleToolSelect = (tool) => setActiveTool(tool);
@@ -31,21 +43,6 @@ export default function App() {
   const ai = useAiFeatures({
     canvasActions,
   });
-
-  const onAiTest = async () => {
-    setActiveTool("ai.inpaint");
-
-    if (!canvasActions) {
-      alert("Canvas not ready yet.");
-      return;
-    }
-
-    await ai.inpaintFromCanvas({
-      prompt: "remove the object, realistic background",
-      apply: true,
-      applyMode: "replace",
-    });
-  }
   // Export trigger
   const [exportRequestId, setExportRequestId] = useState(0);
 
@@ -58,7 +55,6 @@ export default function App() {
       <MenuBar
         activeTool={activeTool}
         onToolSelect={handleToolSelect}
-        onAiTest={onAiTest}
         onExport={handleExport}
       />
 
@@ -72,6 +68,7 @@ export default function App() {
           brushSize={brushSize}
           onBrushColorChange={setBrushColor}
           onBrushSizeChange={setBrushSize}
+          canvasActions={canvasActions}
         />
 
         <CanvasArea
@@ -101,6 +98,17 @@ export default function App() {
             onContrastChange={setContrast}
             saturation={saturation}
             onSaturationChange={setSaturation}
+            ai={ai}
+            aiPrompt={aiPrompt}
+            onAiPromptChange={setAiPrompt}
+            aiGuidanceScale={aiGuidanceScale}
+            onAiGuidanceScaleChange={setAiGuidanceScale}
+            aiSteps={aiSteps}
+            onAiStepsChange={setAiSteps}
+            aiSeed={aiSeed}
+            onAiSeedChange={setAiSeed}
+            outpaintDirections={outpaintDirections}
+            onOutpaintDirectionsChange={setOutpaintDirections}
           />
         </div>
       </div>

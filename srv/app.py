@@ -1,13 +1,28 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
+### from flask_cors import CORS
 import json, os, threading, uuid, time, tempfile
 from io import BytesIO
-from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background
+from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background, run_replace_background
 
 app = Flask(
     __name__,
     static_folder="../frontend/dist",
     static_url_path="/"
 )
+
+### ### Please stop pushing changes with this enabled, it breaks things
+###
+### CORS(
+###     app,
+###     resources={
+###         r"/api/*": {
+###             "origins": [
+###                 "http://localhost:5173",
+###                 "http://127.0.0.1:5173",
+###             ]
+###        }
+###     },
+### )
 
 task_storage = {}
 MAX_TASK_AGE = 3600  # Keep completed tasks for 1 hour
@@ -251,6 +266,19 @@ def remove_background():
 
     try:
         output_path = run_remove_background(request.files["image"])
+        return send_file(output_path, mimetype="image/png")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/replacebg", methods=["POST"])
+def replace_background():
+    if "image" not in request.files:
+        return jsonify({"error": "image is required"}), 400
+
+    prompt = request.form.get("prompt", "")
+    try:
+        output_path = run_replace_background(request.files["image"], prompt)
         return send_file(output_path, mimetype="image/png")
     except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -2,17 +2,20 @@ import torch
 from PIL import Image
 from diffusers.utils import load_image
 from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
-from transformers import BlipProcessor, BlipForConditionalGeneration
+from transformers import BlipProcessor, BlipForConditionalGeneration, logging
 from rembg import remove
 import tempfile
 import io
+
+logging.set_verbosity_error()
 
 DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
 
 inpainting_pipe = StableDiffusionInpaintPipeline.from_pretrained(
     "runwayml/stable-diffusion-inpainting",
-    torch_dtype=DTYPE
+    torch_dtype=DTYPE,
+    use_safetensors=False
 ).to(DEVICE)
 
 deblur_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
@@ -31,7 +34,7 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
 
 deblur_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
     "runwayml/stable-diffusion-v1-5",
-    torch_dtype=torch.float16
+    torch_dtype=DTYPE
 ).to(DEVICE)
 
 caption_processor = BlipProcessor.from_pretrained(
@@ -170,3 +173,28 @@ def run_remove_background(image):
     result.save(tmp.name)
 
     return tmp.name
+
+
+def run_replace_background(image, prompt=None):
+    image = Image.open(image).convert("RGBA")
+    prompt = prompt or "a clean, natural background behind the subject"
+
+    img_byte_arr = io.BytesIO()
+    image.save(img_byte_arr, format="PNG")
+
+    removed = remove(img_byte_arr.getvalue())
+    foreground = Image.open(io.BytesIO(removed)).convert("RGBA")
+
+    alpha = foreground.split()[-1]
+    mask = alpha.point(lambda a: 255 if a == 0 else 0).convert("RGB")
+    rgb_foreground = foreground.convert("RGB")
+
+    mask_bytes = io.BytesIO()
+    mask.save(mask_bytes, format="PNG")
+    mask_bytes.seek(0)
+
+    fg_bytes = io.BytesIO()
+    rgb_foreground.save(fg_bytes, format="PNG")
+    fg_bytes.seek(0)
+
+    return run_inpaint(fg_bytes, mask_bytes, prompt)

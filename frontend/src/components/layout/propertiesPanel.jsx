@@ -1,4 +1,4 @@
-import { Layers, SlidersHorizontal, Brush, Wand2 } from "lucide-react";
+import { Layers, SlidersHorizontal, Brush, Wand2, Sparkles } from "lucide-react";
 
 export default function PropertiesPanel({
   open,
@@ -20,10 +20,27 @@ export default function PropertiesPanel({
   onContrastChange,
   saturation,
   onSaturationChange,
+
+  ai,
+  aiPrompt,
+  onAiPromptChange,
+  aiGuidanceScale,
+  onAiGuidanceScaleChange,
+  aiSteps,
+  onAiStepsChange,
+  aiSeed,
+  onAiSeedChange,
+  outpaintDirections,
+  onOutpaintDirectionsChange,
 }) {
   const isBrushTool = activeTool === "brush";
   const isHealTool = activeTool === "heal";
   const isAdjustTool = activeTool === "adjust";
+  const isInpaintTool = activeTool === "ai.inpaint";
+  const isOutpaintTool = activeTool === "ai.outpaint";
+  const isDeblurTool = activeTool === "ai.deblur";
+  const isDescribeTool = activeTool === "ai.describe";
+  const isBackgroundMagicTool = activeTool === "ai.backgroundmagic";
 
   return (
     <aside
@@ -160,6 +177,282 @@ export default function PropertiesPanel({
             </div>
           </PanelCard>
         )}
+
+        {isInpaintTool && (
+          <PanelCard title="Inpaint Settings" icon={<Wand2 className="h-4 w-4" />}>
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs text-gray-600">Prompt</div>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => onAiPromptChange?.(e.target.value)}
+                  placeholder="Describe what to generate in the masked area..."
+                  className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                  rows={3}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs text-gray-600">Guidance Scale</div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    step="0.5"
+                    value={aiGuidanceScale}
+                    onChange={(e) => onAiGuidanceScaleChange?.(Number(e.target.value))}
+                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600">Steps</div>
+                  <input
+                    type="number"
+                    min="10"
+                    max="100"
+                    value={aiSteps}
+                    onChange={(e) => onAiStepsChange?.(Number(e.target.value))}
+                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Seed (-1 for random)</div>
+                <input
+                  type="number"
+                  value={aiSeed}
+                  onChange={(e) => onAiSeedChange?.(Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                />
+              </div>
+              <button
+                onClick={() => ai?.inpaintFromCanvas({ prompt: aiPrompt, guidance_scale: aiGuidanceScale, steps: aiSteps, seed: aiSeed })}
+                disabled={ai?.loading}
+                className="w-full rounded-lg bg-blue-500 px-3 py-2 text-sm text-white hover:bg-blue-600 disabled:opacity-50"
+              >
+                {ai?.loading ? "Processing..." : "Apply Inpaint"}
+              </button>
+            </div>
+          </PanelCard>
+        )}
+
+        {isOutpaintTool && (
+          <PanelCard title="Outpaint Settings" icon={<Wand2 className="h-4 w-4" />}>
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs text-gray-600">Prompt</div>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => onAiPromptChange?.(e.target.value)}
+                  placeholder="Describe the extended area..."
+                  className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Directions to Expand</div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {[
+                    { key: "top", label: "Top" },
+                    { key: "bottom", label: "Bottom" },
+                    { key: "left", label: "Left" },
+                    { key: "right", label: "Right" },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={outpaintDirections[key]}
+                        onChange={(e) => onOutpaintDirectionsChange?.({ ...outpaintDirections, [key]: e.target.checked })}
+                        className="rounded border-gray-300"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="text-xs text-gray-600">Guidance Scale</div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    step="0.5"
+                    value={aiGuidanceScale}
+                    onChange={(e) => onAiGuidanceScaleChange?.(Number(e.target.value))}
+                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-600">Steps</div>
+                  <input
+                    type="number"
+                    min="10"
+                    max="100"
+                    value={aiSteps}
+                    onChange={(e) => onAiStepsChange?.(Number(e.target.value))}
+                    className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-600">Seed (-1 for random)</div>
+                <input
+                  type="number"
+                  value={aiSeed}
+                  onChange={(e) => onAiSeedChange?.(Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  const directions = {};
+                  if (outpaintDirections.left) directions.left = 256;
+                  if (outpaintDirections.right) directions.right = 256;
+                  if (outpaintDirections.top) directions.top = 256;
+                  if (outpaintDirections.bottom) directions.bottom = 256;
+                  ai?.outpaintFromCanvas({ prompt: aiPrompt, guidance_scale: aiGuidanceScale, steps: aiSteps, seed: aiSeed, directions });
+                }}
+                disabled={ai?.loading || !Object.values(outpaintDirections).some(Boolean)}
+                className="w-full rounded-lg bg-blue-500 px-3 py-2 text-sm text-white hover:bg-blue-600 disabled:opacity-50"
+              >
+                {ai?.loading ? "Processing..." : "Apply Outpaint"}
+              </button>
+            </div>
+          </PanelCard>
+        )}
+
+        {isDeblurTool && (
+          <PanelCard title="Deblur Settings" icon={<Wand2 className="h-4 w-4" />}>
+            <div className="space-y-4">
+              <div>
+                <div className="text-xs text-gray-600">Optional Prompt</div>
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => onAiPromptChange?.(e.target.value)}
+                  placeholder="Optional: describe the image for better results..."
+                  className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+                  rows={2}
+                />
+              </div>
+              <button
+                onClick={() => ai?.deblurFromCanvas({ prompt: aiPrompt || undefined })}
+                disabled={ai?.loading}
+                className="w-full rounded-lg bg-blue-500 px-3 py-2 text-sm text-white hover:bg-blue-600 disabled:opacity-50"
+              >
+                {ai?.loading ? "Processing..." : "Apply Deblur"}
+              </button>
+            </div>
+          </PanelCard>
+        )}
+
+        {isDescribeTool && (
+          <PanelCard title="Describe Image" icon={<Wand2 className="h-4 w-4" />}>
+            <div className="space-y-4">
+              <div className="text-xs text-gray-600">
+                Generate a description of the current image.
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    const description = await ai?.describeFromCanvas();
+                    alert(`Image Description: ${description}`);
+                  } catch (err) {
+                    alert(`Error: ${err.message}`);
+                  }
+                }}
+                disabled={ai?.loading}
+                className="w-full rounded-lg bg-blue-500 px-3 py-2 text-sm text-white hover:bg-blue-600 disabled:opacity-50"
+              >
+                {ai?.loading ? "Processing..." : "Describe Image"}
+              </button>
+            </div>
+          </PanelCard>
+        )}
+
+        
+{isBackgroundMagicTool && (
+  <PanelCard title="Background Magic" icon={<Sparkles className="h-4 w-4" />}>
+    <div className="space-y-4">
+      {/* Remove Background Section */}
+      <div className="border-b border-gray-200 pb-3">
+        <div className="text-xs font-semibold text-gray-700 mb-2">Remove Background</div>
+
+          <button
+            onClick={async () => {
+              try {
+                const canvas = window.canvas;
+                if (!canvas) throw new Error("Canvas not initialized");
+                
+                const img = canvas.getObjects().find((o) => o.type === "image");
+                if (!img) throw new Error("No image on canvas!");
+                
+                const dataUrl = img.toDataURL({ format: "png" });
+                const res = await fetch(dataUrl);
+                const blob = await res.blob();
+                
+                // Call removeBackground with the blob
+                await ai?.removeBackground({
+                  imageBlob: blob,
+                  apply: true,
+                  applyMode: "replace"
+                });
+              } catch (err) {
+                alert(`Error: ${err.message}`);
+              }
+            }}
+            disabled={ai?.loading}
+            className="w-full rounded-lg bg-purple-500 px-3 py-2 text-sm text-white hover:bg-purple-600 disabled:opacity-50"
+          >
+            {ai?.loading ? "Processing..." : "Remove Background"}
+          </button>
+      </div>
+
+      {/* Replace Background Section */}
+      <div>
+        <div className="text-xs font-semibold text-gray-700 mb-2">Replace Background</div>
+        <div className="text-xs text-gray-600 mb-2">Prompt</div>
+        <textarea
+          value={aiPrompt}
+          onChange={(e) => onAiPromptChange?.(e.target.value)}
+          placeholder="Describe the new background (e.g., 'beach at sunset', 'modern office', 'forest path')..."
+          className="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
+          rows={3}
+        />
+        <button
+          onClick={async () => {
+            if (!aiPrompt?.trim()) {
+              alert("Please enter a prompt for the new background");
+              return;
+            }
+            if (!window.canvas) throw new Error("Canvas not initialized");
+            if (!canvas.getObjects().find((o) => o.type === "image")) throw new Error("No image on canvas!");
+
+            try {
+              await ai?.replaceBackground({
+                prompt: aiPrompt,
+                apply: true,
+                applyMode: "replace",
+              });
+              alert("Background replacement applied.");
+            } catch (err) {
+              console.error(err);
+              alert(err?.message || "Background replacement failed.");
+            }
+          }}
+          disabled={ai?.loading || !aiPrompt?.trim()}
+          className="w-full rounded-lg bg-blue-500 px-3 py-2 text-sm text-white hover:bg-blue-600 disabled:opacity-50"
+        >
+          {ai?.loading ? "Processing..." : "Remove & Replace Background"}
+        </button>
+      </div>
+      
+      <div className="text-[11px] text-gray-500 mt-2">
+        Remove background completely, or replace it with an AI-generated background based on your prompt.
+      </div>
+    </div>
+  </PanelCard>
+)}
 
         <PanelCard title="Layers" icon={<Layers className="h-4 w-4" />}>
           <div className="text-xs text-gray-600">
