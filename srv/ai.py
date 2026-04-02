@@ -1,5 +1,5 @@
 import torch
-from PIL import Image
+from PIL import Image, ImageFilter
 from diffusers.utils import load_image
 from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
 from transformers import BlipProcessor, BlipForConditionalGeneration, logging
@@ -51,7 +51,7 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
 
 def run_inpaint(image, mask, prompt=None, progress_callback=None):
     image = Image.open(image).convert("RGB")
-    mask = Image.open(mask).convert("RGB")
+    mask = Image.open(mask).convert("L")
     original_size = image.size
     prompt = prompt or ""
     guidance = 1.0 if prompt == "" else 4.0
@@ -76,11 +76,19 @@ def run_inpaint(image, mask, prompt=None, progress_callback=None):
 
     output_image = result.images[0].resize(original_size, Image.Resampling.LANCZOS)
 
+    mask = mask.resize(original_size, Image.Resampling.LANCZOS)
+
+    soft_mask = mask.filter(ImageFilter.GaussianBlur(radius=3))
+
+    soft_mask = soft_mask.point(lambda x: min(255, max(0, x)))
+
+    blended = Image.composite(output_image, image, soft_mask)
+
     if progress_callback:
         progress_callback(100)
 
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-    output_image.save(tmp.name)
+    blended.save(tmp.name)
     return tmp.name
 
 def run_outpaint(image, directions, prompt=None, progress_callback=None):
