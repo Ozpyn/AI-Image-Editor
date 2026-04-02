@@ -64,4 +64,13 @@ button:hover {
   background: #cbd5f5;
   border-radius: 10px;
 }
-.menuItem{background: #4f46e5;}
+.menuItem{background: #4f46e5; }
+
+/* AI Submenu spacing */
+.ai-submenu button {
+  margin-bottom: 8px;
+}
+
+.ai-submenu button:last-child {
+  margin-bottom: 8px;
+}

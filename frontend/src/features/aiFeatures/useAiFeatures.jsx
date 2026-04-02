@@ -37,7 +37,7 @@ export function useAiFeatures({
   apiBase = `${window.location.origin}/api`,
 
   // // Please stop pushing changes with this enabled, it breaks things.
-  // apiBase = "http://localhost:8000/api",
+  //apiBase = "http://localhost:8000/api",
 
   canvasActions, // { exportAsPNGBlob, exportAsMaskBlob, applyBlobResult }
 } = {}) {

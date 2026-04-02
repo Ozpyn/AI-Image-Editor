@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
-### from flask_cors import CORS
+#from flask_cors import CORS
 import json, os, threading, uuid, time, tempfile
 from io import BytesIO
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background, run_replace_background
@@ -10,19 +10,19 @@ app = Flask(
     static_url_path="/"
 )
 
-### ### Please stop pushing changes with this enabled, it breaks things
-###
-### CORS(
-###     app,
-###     resources={
-###         r"/api/*": {
-###             "origins": [
-###                 "http://localhost:5173",
-###                 "http://127.0.0.1:5173",
-###             ]
-###        }
-###     },
-### )
+### Please stop pushing changes with this enabled, it breaks things
+
+# CORS(
+#     app,
+#     resources={
+#         r"/api/*": {
+#             "origins": [
+#                 "http://localhost:5173", "http://localhost:8000",
+#                 "http://127.0.0.1:5173",
+#             ]
+#        }
+#     },
+# )
 
 task_storage = {}
 MAX_TASK_AGE = 3600  # Keep completed tasks for 1 hour

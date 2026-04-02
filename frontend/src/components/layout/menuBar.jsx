@@ -38,7 +38,7 @@ export default function MenuBar({activeTool, onToolSelect, onExport}) {
                  />
 
               {aiDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1 w-48 bg-panel/90 backdrop-blur border border-white/10 rounded-lg shadow-lg z-[1300]">
+                <div className="ai-submenu absolute top-full left-0 mt-1 w-48 bg-panel/90 backdrop-blur border border-white/10 rounded-lg shadow-lg z-[1300]">
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.inpaint"); setAiDropdownOpen(false); }}>Inpaint</button>
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.outpaint"); setAiDropdownOpen(false); }}>Outpaint</button>
                   <button className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 text-gray-200" onClick={() => { onToolSelect("ai.deblur"); setAiDropdownOpen(false); }}>Deblur</button>
@@ -60,7 +60,7 @@ export default function MenuBar({activeTool, onToolSelect, onExport}) {
           <button
             type="button"
             onClick={onExport}
-            className="hidden items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90 md:flex"
+            className="hidden items-center gap-4 rounded-lg bg-accent px-3 py-2 mb-4 text-sm font-semibold text-white hover:opacity-90 md:flex"
           >
             <Download className="h-4 w-4" />
             Export
