@@ -13,6 +13,7 @@ export default function CanvasArea({
   adjustments,
   exportRequestId,
   onCanvasActionsReady,
+  onToolChangeRequest,
 }) {
   const fileRef = useRef(null);
   const stageRef = useRef(null);
@@ -23,6 +24,7 @@ export default function CanvasArea({
     brushSize,
     healFlow,
     adjustments,
+    onToolChangeRequest,
   });
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export default function CanvasArea({
     ro.observe(stageArea);
 
     return () => ro.disconnect();
-  }, [ready, actions.setSize]);
+  }, [ready, actions]);
 
   useEffect(() => {
     if (!ready) return;
@@ -74,6 +76,14 @@ export default function CanvasArea({
     } finally {
       e.target.value = "";
     }
+  };
+
+  const handleApplyCrop = async () => {
+    await actions.applyCrop?.();
+  };
+
+  const handleCancelCrop = () => {
+    actions.cancelCrop?.();
   };
 
   return (
@@ -131,8 +141,12 @@ export default function CanvasArea({
               {!ready && (
                 <div className="absolute inset-0 grid place-items-center">
                   <div className="text-center">
-                    <div className="text-sm font-semibold text-gray-200">Initializing canvas…</div>
-                    <div className="mt-1 text-xs text-gray-400">Fabric is mounting</div>
+                    <div className="text-sm font-semibold text-gray-200">
+                      Initializing canvas…
+                    </div>
+                    <div className="mt-1 text-xs text-gray-400">
+                      Fabric is mounting
+                    </div>
                   </div>
                 </div>
               )}
@@ -163,13 +177,23 @@ export default function CanvasArea({
                 </button>
 
                 {activeTool === "crop" && (
-                  <button
-                    onClick={actions.applyCrop}
-                    className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
-                    type="button"
-                  >
-                    Apply Crop
-                  </button>
+                  <>
+                    <button
+                      onClick={handleApplyCrop}
+                      className="rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+                      type="button"
+                    >
+                      Apply Crop
+                    </button>
+
+                    <button
+                      onClick={handleCancelCrop}
+                      className="rounded-lg bg-white/5 px-3 py-2 text-sm font-semibold text-gray-200 hover:bg-white/10"
+                      type="button"
+                    >
+                      Cancel Crop
+                    </button>
+                  </>
                 )}
               </div>
             </div>

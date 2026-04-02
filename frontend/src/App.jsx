@@ -43,11 +43,20 @@ export default function App() {
   const ai = useAiFeatures({
     canvasActions,
   });
+
   // Export trigger
   const [exportRequestId, setExportRequestId] = useState(0);
 
   const handleExport = () => {
     setExportRequestId((prev) => prev + 1);
+  };
+
+  const handleUndo = () => {
+    canvasActions?.undo?.();
+  };
+
+  const handleRedo = () => {
+    canvasActions?.redo?.();
   };
 
   return (
@@ -56,6 +65,10 @@ export default function App() {
         activeTool={activeTool}
         onToolSelect={handleToolSelect}
         onExport={handleExport}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={canvasActions?.canUndo ?? false}
+        canRedo={canvasActions?.canRedo ?? false}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -79,6 +92,7 @@ export default function App() {
           adjustments={{ brightness, contrast, saturation }}
           exportRequestId={exportRequestId}
           onCanvasActionsReady={setCanvasActions}
+          onToolChangeRequest={setActiveTool}
         />
 
         <div className="hidden lg:block">

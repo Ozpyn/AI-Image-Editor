@@ -1,10 +1,8 @@
 import { PencilBrush, Textbox, IText, Rect } from "fabric";
 import * as fabricNS from "fabric";
-import { fabricImageFromURL } from "./loadImage";
+import { fabricImageFromURL, blobToDataURL } from "./loadImage";
 
-// const { PencilBrush, Textbox, IText, Rect } = fabricNS;
 const Filters = fabricNS.filters || fabricNS.fabric?.filters;
-
 
 /**
  * Force 2D filter backend to avoid WebGL texture cropping/strips on some large images.
@@ -33,10 +31,6 @@ function ensure2DFilterBackend() {
   }
 }
 
-/**
- * Canvas utility + tool-mode handlers.
- */
-
 const toolModes = {
   select: enableSelectMode,
   crop: enableCropMode,
@@ -46,6 +40,25 @@ const toolModes = {
   brush: enableBrushMode,
   heal: enableHealMode,
 };
+
+function clearToolHandlers(canvas) {
+  if (!canvas?.__toolHandlers) return;
+
+  const h = canvas.__toolHandlers;
+
+  if (h.mouseDown) canvas.off("mouse:down", h.mouseDown);
+  if (h.mouseMove) canvas.off("mouse:move", h.mouseMove);
+  if (h.mouseUp) canvas.off("mouse:up", h.mouseUp);
+  if (h.pathCreated) canvas.off("path:created", h.pathCreated);
+
+  canvas.__toolHandlers = {};
+}
+
+function setToolHandler(canvas, key, eventName, handler) {
+  if (!canvas.__toolHandlers) canvas.__toolHandlers = {};
+  canvas.__toolHandlers[key] = handler;
+  canvas.on(eventName, handler);
+}
 
 export function setToolMode(canvas, mode = "select", options = {}) {
   if (!canvas) return;
@@ -67,11 +80,7 @@ function resetCanvasState(canvas) {
 
   removeCropArtifacts(canvas);
   removeHealArtifacts(canvas);
-
-  canvas.off("mouse:down");
-  canvas.off("mouse:move");
-  canvas.off("mouse:up");
-  canvas.off("path:created");
+  clearToolHandlers(canvas);
 
   canvas.discardActiveObject();
 
@@ -158,7 +167,7 @@ export function zoomImage(canvas, factor = 1) {
     scaleY: nextScale,
   });
 
- img.setCoords?.();
+  img.setCoords?.();
   canvas.__zoomLevel = nextZoom;
   canvas.setActiveObject?.(img);
   canvas.requestRenderAll?.();
@@ -186,6 +195,9 @@ export function clearCanvas(canvas) {
   canvas.getObjects().forEach((o) => canvas.remove(o));
   canvas.__fitScale = 1;
   canvas.__zoomLevel = 1;
+  canvas.__cropRect = null;
+  canvas.__cropShade = null;
+  canvas.__healSourceMarker = null;
   canvas.discardActiveObject();
   canvas.requestRenderAll();
 }
@@ -218,14 +230,14 @@ export function setCanvasSize(canvas, width, height) {
 
 export function clearMaskObjects(canvas) {
   if (!canvas) return;
-  const maskObjects = canvas.getObjects().filter(obj => obj?.data?.role === "mask");
+  const maskObjects = canvas.getObjects().filter((obj) => obj?.data?.role === "mask");
   maskObjects.forEach((obj) => canvas.remove(obj));
   canvas.requestRenderAll();
 }
 
 export function getBaseImageObject(canvas) {
   if (!canvas) return null;
-  
+
   const objects = canvas.getObjects();
   for (const obj of objects) {
     const isMask = obj?.data?.role === "mask";
@@ -239,7 +251,7 @@ export function getBaseImageObject(canvas) {
 
 export function getOriginalImageDimensions(imageObj) {
   if (!imageObj) return null;
-  
+
   const element = imageObj._element || imageObj._originalElement;
   if (element && element.naturalWidth && element.naturalHeight) {
     return {
@@ -247,6 +259,7 @@ export function getOriginalImageDimensions(imageObj) {
       height: element.naturalHeight,
     };
   }
+
   return {
     width: imageObj.width,
     height: imageObj.height,
@@ -259,16 +272,16 @@ export function getOriginalSizeMultiplier(canvas) {
 
   const originalDims = getOriginalImageDimensions(baseImage);
   if (!originalDims) return 1;
-  
+
   const originalW = originalDims.width;
   const originalH = originalDims.height;
-  
+
   const imageScaledW = baseImage.getScaledWidth();
   const imageScaledH = baseImage.getScaledHeight();
-  
+
   const multiplierW = originalW / imageScaledW;
   const multiplierH = originalH / imageScaledH;
-  
+
   return (multiplierW + multiplierH) / 2;
 }
 
@@ -299,9 +312,15 @@ export function applyImageAdjustments(canvas, adjustments = {}) {
   img.set?.("dirty", true);
 
   const nextFilters = [];
-  if (Math.abs(brightness) > 1e-6) nextFilters.push(new Filters.Brightness({ brightness }));
-  if (Math.abs(contrast) > 1e-6) nextFilters.push(new Filters.Contrast({ contrast }));
-  if (Math.abs(saturation) > 1e-6) nextFilters.push(new Filters.Saturation({ saturation }));
+  if (Math.abs(brightness) > 1e-6) {
+    nextFilters.push(new Filters.Brightness({ brightness }));
+  }
+  if (Math.abs(contrast) > 1e-6) {
+    nextFilters.push(new Filters.Contrast({ contrast }));
+  }
+  if (Math.abs(saturation) > 1e-6) {
+    nextFilters.push(new Filters.Saturation({ saturation }));
+  }
 
   img.filters = nextFilters;
   img.applyFilters?.();
@@ -398,11 +417,14 @@ function initHealBitmapFromImage(img) {
 function updateImageFromHealBitmap(img, bitmap) {
   if (!img || !bitmap) return;
 
+  const dataUrl = bitmap.toDataURL("image/png");
+
+  img.set("src", dataUrl);
+  img._element = bitmap;
+  img._originalElement = bitmap;
+
   if (typeof img.setElement === "function") {
     img.setElement(bitmap);
-  } else {
-    img._element = bitmap;
-    img._originalElement = bitmap;
   }
 
   img.set({
@@ -413,7 +435,9 @@ function updateImageFromHealBitmap(img, bitmap) {
     dirty: true,
     objectCaching: false,
   });
+
   img.objectCaching = false;
+  img.setCoords?.();
 }
 
 function createSoftBrushMask(size, hardness = 0.28) {
@@ -481,7 +505,13 @@ function stampCloneDab(img, targetX, targetY, sourceX, sourceY, size, flow = 0.4
 
   ctx.save();
   ctx.globalAlpha = Math.max(0.05, Math.min(1, flow));
-  ctx.drawImage(sample, Math.round(targetX - radius), Math.round(targetY - radius), diameter, diameter);
+  ctx.drawImage(
+    sample,
+    Math.round(targetX - radius),
+    Math.round(targetY - radius),
+    diameter,
+    diameter
+  );
   ctx.restore();
 
   updateImageFromHealBitmap(img, bitmap);
@@ -570,7 +600,7 @@ function enableHealMode(canvas, options = {}) {
     lastTarget: null,
   };
 
-  canvas.on("mouse:down", (opt) => {
+  const handleMouseDown = (opt) => {
     const p = getCanvasPoint(canvas, opt);
     if (!p) return;
 
@@ -610,9 +640,9 @@ function enableHealMode(canvas, options = {}) {
     img.setCoords?.();
     canvas.setActiveObject?.(img);
     canvas.requestRenderAll?.();
-  });
+  };
 
-  canvas.on("mouse:move", (opt) => {
+  const handleMouseMove = (opt) => {
     const state = canvas.__healState;
     if (!state?.isPainting) return;
 
@@ -640,14 +670,18 @@ function enableHealMode(canvas, options = {}) {
     img.setCoords?.();
     canvas.setActiveObject?.(img);
     canvas.requestRenderAll?.();
-  });
+  };
 
-  canvas.on("mouse:up", () => {
+  const handleMouseUp = () => {
     const state = canvas.__healState;
     if (!state) return;
     state.isPainting = false;
     state.lastTarget = null;
-  });
+  };
+
+  setToolHandler(canvas, "mouseDown", "mouse:down", handleMouseDown);
+  setToolHandler(canvas, "mouseMove", "mouse:move", handleMouseMove);
+  setToolHandler(canvas, "mouseUp", "mouse:up", handleMouseUp);
 
   canvas.requestRenderAll();
 }
@@ -671,16 +705,24 @@ function enableBrushMode(canvas, options = {}) {
   brush.decimate = decimate;
   canvas.freeDrawingBrush = brush;
 
-  canvas.on("path:created", (e) => {
+  const handlePathCreated = (e) => {
     const path = e.path;
-    path.set({ selectable: false, evented: false });
+    path.set({
+      selectable: false,
+      evented: false,
+      excludeFromExport: false,
+    });
     path.data = { role: "brush" };
-  });
+  };
+
+  setToolHandler(canvas, "pathCreated", "path:created", handlePathCreated);
 
   canvas.requestRenderAll();
 }
 
-function enableEraseMode(canvas) {
+function enableEraseMode(canvas, options = {}) {
+  const { size = 50, decimate = 0.4 } = options;
+
   canvas.selection = false;
   canvas.discardActiveObject();
   canvas.isDrawingMode = true;
@@ -692,16 +734,22 @@ function enableEraseMode(canvas) {
   });
 
   const brush = new PencilBrush(canvas);
-  brush.width = 50;
+  brush.width = size;
   brush.color = "white";
-  brush.decimate = 0.4;
+  brush.decimate = decimate;
   canvas.freeDrawingBrush = brush;
 
-  canvas.on("path:created", (e) => {
+  const handlePathCreated = (e) => {
     const path = e.path;
-    path.set({ selectable: false, evented: false });
+    path.set({
+      selectable: false,
+      evented: false,
+      excludeFromExport: false,
+    });
     path.data = { role: "mask" };
-  });
+  };
+
+  setToolHandler(canvas, "pathCreated", "path:created", handlePathCreated);
 
   canvas.requestRenderAll();
 }
@@ -730,7 +778,7 @@ function enableTextMode(canvas) {
 
   const TextClass = Textbox || IText;
 
-  canvas.on("mouse:down", (opt) => {
+  const handleMouseDown = (opt) => {
     const p = getPoint(opt);
     if (!p) return;
 
@@ -757,7 +805,9 @@ function enableTextMode(canvas) {
       textObj.enterEditing?.();
       textObj.hiddenTextarea?.focus?.();
     }, 0);
-  });
+  };
+
+  setToolHandler(canvas, "mouseDown", "mouse:down", handleMouseDown);
 
   canvas.requestRenderAll();
 }
@@ -777,28 +827,18 @@ function enableCropMode(canvas) {
 
   removeCropArtifacts(canvas);
 
-  const cw = canvas.getWidth();
-  const ch = canvas.getHeight();
-
   const img = canvas.getObjects()?.find((o) => o?.type === "image");
-  const base = img?.getBoundingRect?.(true, true) || { left: 0, top: 0, width: cw, height: ch };
+  if (!img) {
+    console.warn("No image found for crop mode");
+    return;
+  }
 
-  const w = Math.max(140, Math.min(base.width * 0.7, cw * 0.9));
-  const h = Math.max(140, Math.min(base.height * 0.7, ch * 0.9));
-  const left = Math.max(0, base.left + (base.width - w) / 2);
-  const top = Math.max(0, base.top + (base.height - h) / 2);
+  const base = img.getBoundingRect(true, true);
 
-  const shade = new Rect({
-    left: 0,
-    top: 0,
-    width: cw,
-    height: ch,
-    fill: "rgba(0,0,0,0)",
-    selectable: false,
-    evented: false,
-    excludeFromExport: true,
-    objectCaching: false,
-  });
+  const w = Math.max(100, base.width * 0.7);
+  const h = Math.max(100, base.height * 0.7);
+  const left = base.left + (base.width - w) / 2;
+  const top = base.top + (base.height - h) / 2;
 
   const cropRect = new Rect({
     left,
@@ -817,16 +857,13 @@ function enableCropMode(canvas) {
     objectCaching: false,
     selectable: true,
     evented: true,
+    excludeFromExport: true,
   });
 
   cropRect.data = { role: "cropRect" };
 
-  canvas.add(shade);
   canvas.add(cropRect);
-
-  canvas.__cropShade = shade;
   canvas.__cropRect = cropRect;
-
   canvas.setActiveObject(cropRect);
   canvas.requestRenderAll();
 }
@@ -848,17 +885,20 @@ export function applyCropToImage(canvas) {
 
   const invImg = util.invertTransform(img.calcTransformMatrix());
   const tl = util.transformPoint(new Point(rect.left, rect.top), invImg);
-  const br = util.transformPoint(new Point(rect.left + rect.width, rect.top + rect.height), invImg);
+  const br = util.transformPoint(
+    new Point(rect.left + rect.width, rect.top + rect.height),
+    invImg
+  );
 
-  const originOffset = (origin, size) => {
+  const originOffsetValue = (origin, size) => {
     if (origin === "left" || origin === "top") return 0;
     if (origin === "center") return size / 2;
     if (origin === "right" || origin === "bottom") return size;
     return 0;
   };
 
-  const ox = originOffset(img.originX, img.width);
-  const oy = originOffset(img.originY, img.height);
+  const ox = originOffsetValue(img.originX, img.width);
+  const oy = originOffsetValue(img.originY, img.height);
 
   const tlx = tl.x + ox;
   const tly = tl.y + oy;
@@ -901,11 +941,12 @@ export function applyCropToImage(canvas) {
     dirty: true,
     objectCaching: false,
   });
+
   img.objectCaching = false;
+  img.setCoords?.();
 
   removeCropArtifacts(canvas);
 
-  img.setCoords?.();
   canvas.setActiveObject?.(img);
   canvas.requestRenderAll?.();
 
@@ -919,10 +960,8 @@ export function cancelCrop(canvas) {
 }
 
 function removeCropArtifacts(canvas) {
-  const shade = canvas.__cropShade;
   const rect = canvas.__cropRect;
 
-  if (shade) canvas.remove(shade);
   if (rect) canvas.remove(rect);
 
   canvas.__cropShade = null;
@@ -930,8 +969,7 @@ function removeCropArtifacts(canvas) {
 }
 
 /* =========================================================
-   Mask mode (draws white strokes for AI inpainting)
-   Creates paths tagged with data.role = "mask"
+   Mask mode
 ========================================================= */
 
 function enableMaskMode(canvas, options = {}) {
@@ -948,8 +986,7 @@ function enableMaskMode(canvas, options = {}) {
   maskBrush.decimate = decimate;
   canvas.freeDrawingBrush = maskBrush;
 
-  canvas.off("path:created");
-  canvas.on("path:created", (e) => {
+  const handlePathCreated = (e) => {
     const path = e?.path;
     if (!path) return;
 
@@ -958,54 +995,20 @@ function enableMaskMode(canvas, options = {}) {
       evented: false,
       stroke: "rgba(255, 255, 255, 0.6)",
       strokeWidth: size,
+      excludeFromExport: false,
     });
-    
+
     path.data = { role: "mask" };
     canvas.requestRenderAll();
-  });
+  };
+
+  setToolHandler(canvas, "pathCreated", "path:created", handlePathCreated);
 
   canvas.requestRenderAll();
 }
 
-// function enableTextMode(canvas, options = {}) {
-//   const {
-//     fill = "#ffffff",
-//     fontSize = 36,
-//     fontFamily = "Inter, system-ui, sans-serif",
-//   } = options;
-
-//   canvas.selection = false;
-//   canvas.defaultCursor = "text";
-
-//   canvas.on("mouse:down", (opt) => {
-//     const p = canvas.getScenePoint(opt.e);
-
-//     const tb = new Textbox("Type here", {
-//       left: p.x,
-//       top: p.y,
-//       fill,
-//       fontSize,
-//       fontFamily,
-//       editable: true,
-//       selectable: true,
-//       evented: true,
-//       originX: "left",
-//       originY: "top",
-//     });
-
-//     canvas.add(tb);
-//     canvas.setActiveObject(tb);
-//     tb.enterEditing();
-//     tb.selectAll();
-
-//     canvas.requestRenderAll();
-//   });
-// }
-
-
-
 /* =========================================================
-   AI bridge utilities (no AI tool logic here)
+   AI bridge utilities
 ========================================================= */
 
 function dataURLToBlob(dataURL) {
@@ -1020,11 +1023,11 @@ function dataURLToBlob(dataURL) {
 
 export async function exportPNGBlob(canvas, multiplier = 1, useOriginalSize = false) {
   if (!canvas) return null;
-  
+
   if (useOriginalSize) {
     return await exportImageAtOriginalSize(canvas);
   }
-  
+
   const dataURL = exportPNG(canvas, multiplier);
   return dataURL ? dataURLToBlob(dataURL) : null;
 }
@@ -1035,13 +1038,13 @@ async function exportImageAtOriginalSize(canvas) {
     console.warn("No base image found, falling back to canvas export");
     return await exportPNGBlob(canvas, 1, false);
   }
-  
+
   const originalDims = getOriginalImageDimensions(baseImage);
   if (!originalDims) {
     console.warn("Could not get original dimensions, falling back");
     return await exportPNGBlob(canvas, 1, false);
   }
-  
+
   const { width: origW, height: origH } = originalDims;
   const element = baseImage._element || baseImage._originalElement;
 
@@ -1083,7 +1086,7 @@ export async function exportMaskBlob(canvas, multiplier = 1, useOriginalSize = f
   canvas.getObjects().forEach((obj) => {
     const isMask = obj?.data?.role === "mask";
     if (isMask) maskObjectCount++;
-    
+
     originals.push({
       obj,
       visible: obj.visible,
@@ -1105,7 +1108,7 @@ export async function exportMaskBlob(canvas, multiplier = 1, useOriginalSize = f
       obj.globalCompositeOperation = "source-over";
     }
   });
-  
+
   if (maskObjectCount === 0) {
     console.warn("No mask objects found! (objects with data.role === 'mask')");
   }
@@ -1137,19 +1140,19 @@ export async function exportMaskBlob(canvas, multiplier = 1, useOriginalSize = f
 
 async function exportMaskAtOriginalSize(canvas) {
   if (!canvas) return null;
-  
+
   const baseImage = getBaseImageObject(canvas);
   if (!baseImage) {
     console.warn("No base image found for mask export");
     return await exportMaskBlob(canvas, 1, false);
   }
-  
+
   const originalDims = getOriginalImageDimensions(baseImage);
   if (!originalDims) {
     console.warn("Could not get original dimensions for mask");
     return await exportMaskBlob(canvas, 1, false);
   }
-  
+
   const { width: origW, height: origH } = originalDims;
   const imageBounds = baseImage.getBoundingRect();
   const boundsW = Math.max(1, imageBounds.width);
@@ -1157,15 +1160,15 @@ async function exportMaskAtOriginalSize(canvas) {
   const multiplierW = origW / boundsW;
   const multiplierH = origH / boundsH;
   const multiplier = (multiplierW + multiplierH) / 2;
-  
+
   const originalBg = canvas.backgroundColor;
   const originals = [];
   let maskObjectCount = 0;
-  
+
   canvas.getObjects().forEach((obj) => {
     const isMask = obj?.data?.role === "mask";
     if (isMask) maskObjectCount++;
-    
+
     originals.push({
       obj,
       visible: obj.visible,
@@ -1175,7 +1178,7 @@ async function exportMaskAtOriginalSize(canvas) {
       fill: obj.fill,
       gco: obj.globalCompositeOperation,
     });
-    
+
     if (!isMask) {
       obj.visible = false;
     } else {
@@ -1187,12 +1190,10 @@ async function exportMaskAtOriginalSize(canvas) {
       obj.globalCompositeOperation = "source-over";
     }
   });
-  
-  console.log("Mask objects found:", maskObjectCount);
-  
+
   canvas.backgroundColor = "black";
   canvas.requestRenderAll();
-  
+
   try {
     const dataURL = canvas.toDataURL({
       format: "png",
@@ -1214,7 +1215,7 @@ async function exportMaskAtOriginalSize(canvas) {
       obj.fill = fill;
       obj.globalCompositeOperation = gco;
     });
-    
+
     canvas.backgroundColor = originalBg;
     canvas.requestRenderAll();
   }
@@ -1227,28 +1228,29 @@ export async function applyResultBlob(
 ) {
   if (!canvas || !blob) return;
 
-  const url = URL.createObjectURL(blob);
+  const dataUrl = await blobToDataURL(blob);
+  const img = await fabricImageFromURL(dataUrl, {
+    selectable: true,
+    evented: true,
+  });
 
-  try {
-    const img = await fabricImageFromURL(url, { selectable: true, evented: true });
+  img.objectCaching = false;
+  img.set?.({ objectCaching: false });
 
-    if (mode === "replace") {
-      clearCanvas(canvas);
-      canvas.add(img);
-      fitObjectToCanvas(canvas, img, padding);
-      canvas.setActiveObject(img);
-    } else if (mode === "newLayer") {
-      canvas.add(img);
-      fitObjectToCanvas(canvas, img, padding);
-      canvas.setActiveObject(img);
-    } else {
-      canvas.add(img);
-      fitObjectToCanvas(canvas, img, padding);
-      canvas.setActiveObject(img);
-    }
-
-    canvas.requestRenderAll();
-  } finally {
-    URL.revokeObjectURL(url);
+  if (mode === "replace") {
+    clearCanvas(canvas);
+    canvas.add(img);
+    fitObjectToCanvas(canvas, img, padding);
+    canvas.setActiveObject(img);
+  } else if (mode === "newLayer") {
+    canvas.add(img);
+    fitObjectToCanvas(canvas, img, padding);
+    canvas.setActiveObject(img);
+  } else {
+    canvas.add(img);
+    fitObjectToCanvas(canvas, img, padding);
+    canvas.setActiveObject(img);
   }
+
+  canvas.requestRenderAll();
 }
