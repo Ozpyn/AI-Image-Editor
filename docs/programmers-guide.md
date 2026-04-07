@@ -83,6 +83,14 @@ To install nodeenv:
 pip install nodeenv
 ```
 
+#### MacOS Known Issue: NodeEnv blocked
+
+For some reason when installing NodeEnv from pip macos will prevent it from running and say it is malware, this is inaccurate. The fix to this is to install NodeEnv using brew: [NodeEnv](https://github.com/nodenv/nodenv)
+
+```
+brew install nodenv
+```
+
 Build and enable the nodeenv:
 ```
 cd frontent/ &&
