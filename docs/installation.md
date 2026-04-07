@@ -41,3 +41,11 @@ This will take a little while, when the script finishes there will be a URL in t
 3. Create and activate a Node envionment via nodeenv
 4. Build the frontend using the node environment
 5. Run the application
+
+### MacOS Known Issue: NodeEnv blocked
+
+For some reason when installing NodeEnv from pip macos will prevent it from running and say it is malware, this is inaccurate. The fix to this is to install NodeEnv using brew: [NodeEnv](https://github.com/nodenv/nodenv)
+
+```
+brew install nodenv
+```
