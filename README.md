@@ -1,12 +1,19 @@
 # An AI-Image-Editor
 
-## Prerequisites
+### Team Members
 
-You will need the latest version of the following:
+- Aaliyah Creech - Nickson Ibrahim - Gabriel Mingle - Gloria Uwimbabazi -
 
-- [python3](https://www.python.org/downloads/) and Python3-venv (if not included in python3)
 
-## How to Run
-```
-run.sh
-```
+### Table of Contents:
+
+* [Introduction](docs/introduction.md)
+* [Setup](docs/installation.md)
+* Main Content
+    * [Interface Overview](docs/interface-overview.md)
+    * [Feature Guide](docs/feature-guide.md)
+    * [Procedural Instructions](docs/procedure.md)
+    * [Use Cases & Examples](docs/uses-examples.md)
+
+
+* [Programmer's Guide](docs/programmers-guide.md)
