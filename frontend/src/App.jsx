@@ -1,14 +1,25 @@
+// Import React state hook
 import { useState } from "react";
+
+// Import layout components
 import MenuBar from "./components/layout/menuBar";
 import ToolBox from "./components/layout/toolBox";
 import CanvasArea from "./components/layout/canvasArea";
 import PropertiesPanel from "./components/layout/propertiesPanel";
 import Footer from "./components/layout/footer";
+
+// Import AI feature hook
 import { useAiFeatures } from "./features/aiFeatures/useAiFeatures";
 
+// Define the main application component
 export default function App() {
+  // Controls whether the toolbox is collapsed
   const [toolboxCollapsed, setToolboxCollapsed] = useState(false);
+
+  // Controls whether the properties panel is open
   const [propertiesOpen, setPropertiesOpen] = useState(true);
+
+  // Stores the currently selected tool
   const [activeTool, setActiveTool] = useState("select");
 
   // Brush options
@@ -35,43 +46,58 @@ export default function App() {
     bottom: false,
   });
 
+  // Stores methods exposed by the canvas hook
   const [canvasActions, setCanvasActions] = useState(null);
 
+  // Change the current active tool
   const handleToolSelect = (tool) => setActiveTool(tool);
 
-  // Create AI hook; it can run only after canvasActions are available
+  // Create AI helpers and pass canvas actions into them
   const ai = useAiFeatures({
     canvasActions,
   });
 
-  // Export trigger
+  // Export trigger counter
   const [exportRequestId, setExportRequestId] = useState(0);
 
+  // Request a new export by increasing the counter
   const handleExport = () => {
     setExportRequestId((prev) => prev + 1);
   };
 
+  // Run undo through canvas actions
   const handleUndo = () => {
     canvasActions?.undo?.();
   };
 
+  // Run redo through canvas actions
   const handleRedo = () => {
     canvasActions?.redo?.();
   };
 
+  // Import selected file through canvas actions
+  const handleOpenFile = async (file) => {
+    await canvasActions?.importFile?.(file);
+  };
+
+  // Render the app layout
   return (
     <div className="flex h-screen w-screen flex-col">
+      {/* Top menu bar */}
       <MenuBar
         activeTool={activeTool}
         onToolSelect={handleToolSelect}
         onExport={handleExport}
         onUndo={handleUndo}
         onRedo={handleRedo}
+        onOpenFile={handleOpenFile}
         canUndo={canvasActions?.canUndo ?? false}
         canRedo={canvasActions?.canRedo ?? false}
       />
 
+      {/* Main horizontal content area */}
       <div className="flex min-h-0 flex-1">
+        {/* Left toolbox */}
         <ToolBox
           collapsed={toolboxCollapsed}
           onToggle={() => setToolboxCollapsed((v) => !v)}
@@ -84,6 +110,7 @@ export default function App() {
           canvasActions={canvasActions}
         />
 
+        {/* Central canvas area */}
         <CanvasArea
           activeTool={activeTool}
           brushColor={brushColor}
@@ -95,6 +122,7 @@ export default function App() {
           onToolChangeRequest={setActiveTool}
         />
 
+        {/* Right properties panel, shown only on large screens */}
         <div className="hidden lg:block">
           <PropertiesPanel
             open={propertiesOpen}
@@ -127,6 +155,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* Bottom footer */}
       <Footer />
     </div>
   );
