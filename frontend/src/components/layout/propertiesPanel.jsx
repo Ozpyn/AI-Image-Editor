@@ -454,7 +454,7 @@ export default function PropertiesPanel({
   </PanelCard>
 )}
 
-        <PanelCard title="Layers" icon={<Layers className="h-4 w-4" />}>
+        {/* <PanelCard title="Layers" icon={<Layers className="h-4 w-4" />}>
           <div className="text-xs text-gray-600">
             Placeholder for layers. Later you can render real canvas objects here.
           </div>
@@ -476,7 +476,7 @@ export default function PropertiesPanel({
               − Remove
             </button>
           </div>
-        </PanelCard>
+        </PanelCard> */}
       </div>
     </aside>
   );
