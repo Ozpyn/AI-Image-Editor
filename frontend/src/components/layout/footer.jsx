@@ -1,9 +1,14 @@
-import { Grid3X3, Hand, Scan, Info } from "lucide-react";
+import { Grid3X3, Hand, Scan, Info, BookOpenText } from "lucide-react";
 
 export default function Footer() {
   return (
     <footer className="h-12 w-full border-t border-white/10 bg-panel/70 backdrop-blur supports-backdrop-filter:bg-panel/50">
       <div className="mx-auto flex h-full max-w-400 items-center justify-between px-3 md:px-4">
+        <IconBtn
+          label="Docs"
+          icon={<BookOpenText className="h-4 w-4" />}
+          onClick={() => window.open("/docs", "_blank")}
+        />
         <div className="flex items-center gap-2 text-xs text-gray-400">
           <span className="rounded-md bg-white/5 px-2 py-1">4000 x 3000 px</span>
           <span className="hidden md:inline">-</span>
@@ -22,9 +27,10 @@ export default function Footer() {
   );
 }
 
-function IconBtn({ icon, label }) {
+function IconBtn({ icon, label, onClick }) {
   return (
     <button
+      onClick={onClick}
       className="inline-flex h-11 w-11 items-center justify-center rounded-lg hover:bg-white/10"
       aria-label={label}
       title={label}

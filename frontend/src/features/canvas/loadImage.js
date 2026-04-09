@@ -25,23 +25,19 @@ function loadHtmlImage(dataURL) {
   });
 }
 
-/**
- * Normalize an image by drawing it to a canvas.
- * - Bakes in EXIF orientation as the browser renders it
- * - Stabilizes pixel dimensions (prevents Fabric cutout/white edges)
- * - Optional downscale to avoid huge images causing weird behavior
- */
-function normalizeToDataURL(htmlImg, {
-  maxDim = 5000,          // avoid extremely huge images
-  outputType = "image/png",
-  quality = 0.92,
-} = {}) {
+function normalizeToDataURL(
+  htmlImg,
+  {
+    maxDim = 5000,
+    outputType = "image/png",
+    quality = 0.92,
+  } = {}
+) {
   const srcW = htmlImg.naturalWidth || htmlImg.width;
   const srcH = htmlImg.naturalHeight || htmlImg.height;
 
   if (!srcW || !srcH) throw new Error("Invalid image dimensions");
 
-  // Downscale only if needed
   const scale = Math.min(1, maxDim / Math.max(srcW, srcH));
   const w = Math.max(1, Math.round(srcW * scale));
   const h = Math.max(1, Math.round(srcH * scale));
@@ -55,27 +51,37 @@ function normalizeToDataURL(htmlImg, {
 
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
-
   ctx.drawImage(htmlImg, 0, 0, w, h);
 
   return canvas.toDataURL(outputType, quality);
 }
 
-/**
- * Public API: file -> normalized DataURL
- */
-export async function loadImageFromFile(file, { normalize = false } = {}) {
+export function blobToDataURL(blob) {
+  return new Promise((resolve, reject) => {
+    if (!blob || !(blob instanceof Blob)) {
+      reject(new Error("blobToDataURL: invalid blob"));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Failed to read blob"));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function loadImageFromFile(file, { normalize = true } = {}) {
   if (!file) throw new Error("No file provided");
   if (!file.type?.startsWith("image/")) throw new Error("File is not an image");
 
+  const raw = await readFileAsDataURL(file);
+
   if (!normalize) {
-    return URL.createObjectURL(file);
+    return raw;
   }
 
-  const raw = await readFileAsDataURL(file);
   const htmlImg = await loadHtmlImage(raw);
 
-  // Normalize to PNG to keep alpha if present (and stable pixels)
   return normalizeToDataURL(htmlImg, {
     maxDim: 5000,
     outputType: "image/png",
@@ -83,26 +89,26 @@ export async function loadImageFromFile(file, { normalize = false } = {}) {
   });
 }
 
-/**
- * Public API: URL/DataURL -> FabricImage
- * - Only sets crossOrigin for http(s) urls (not for data:)
- */
 export function fabricImageFromURL(url, opts = {}) {
   return new Promise((resolve, reject) => {
-    if (!url) return reject(new Error("No URL provided"));
+    if (!url) {
+      reject(new Error("No URL provided"));
+      return;
+    }
 
     const isHttp = /^https?:\/\//i.test(url);
-    const isBlob = /^blob:/i.test(url);
     const options = isHttp ? { crossOrigin: "anonymous" } : {};
 
     FabricImage.fromURL(url, options)
       .then((img) => {
-        img.set({ selectable: true, evented: true, ...opts });
-        if (isBlob) URL.revokeObjectURL(url);
+        img.set({
+          selectable: true,
+          evented: true,
+          ...opts,
+        });
         resolve(img);
       })
       .catch(() => {
-        if (isBlob) URL.revokeObjectURL(url);
         reject(new Error("Failed to create fabric image"));
       });
   });

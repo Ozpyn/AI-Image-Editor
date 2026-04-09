@@ -46,9 +46,6 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
 
 # inpainting_pipe.enable_xformers_memory_efficient_attention()
 
-# These might be changed later to implement Redis, which would allow us to queue jobs.
-# We could also 'lazy load' each model and keep it in memory for as long as the Flask app is running, making it so subsequent requests are faster.
-
 def run_inpaint(image, mask, prompt=None, progress_callback=None):
     image = Image.open(image).convert("RGB")
     mask = Image.open(mask).convert("L")
@@ -168,14 +165,11 @@ def run_describe(image):
 def run_remove_background(image):
     image = Image.open(image).convert("RGBA")
 
-    # Convert image to bytes
     img_byte_arr = io.BytesIO()
     image.save(img_byte_arr, format="PNG")
 
-    # Remove background
     output = remove(img_byte_arr.getvalue())
 
-    # Convert to PIL
     result = Image.open(io.BytesIO(output))
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     result.save(tmp.name)
