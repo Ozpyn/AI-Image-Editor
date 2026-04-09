@@ -1,20 +1,33 @@
-python3 -m venv srv/.venv
-
 if [ -f "srv/.venv/bin/activate" ]; then
-    source srv/.venv/bin/activate
+    echo "Python .venv detected"
 else
-    source srv/.venv/Scripts/activate
+    echo "Making python .venv"
+    python3 -m venv srv/.venv
 fi
+
+source srv/.venv/bin/activate
 
 cd frontend
 
 pip install nodeenv -q
 
-nodeenv env
+if [ -f "env/bin/activate" ]; then
+    echo "Node env detected"
+else
+    echo "Making Node env"
+    nodeenv env
+fi
 
 source env/bin/activate
 
-npm install
+npm install -s
+
+if [ -d "dist" ]; then
+    echo "Removing old frontend build..."
+    rm -rf "dist"
+fi
+
+echo "Building frontend..."
 
 npm run build
 
