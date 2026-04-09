@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory, render_template_string, abort
-### from flask_cors import CORS
 import json, os, threading, uuid, time, tempfile, re
 from io import BytesIO
 import markdown
@@ -11,20 +10,6 @@ app = Flask(
     static_folder="../frontend/dist",
     static_url_path="/"
 )
-
-### ### Please stop pushing changes with this enabled, it breaks things
-###
-### CORS(
-###     app,
-###     resources={
-###         r"/api/*": {
-###             "origins": [
-###                 "http://localhost:5173",
-###                 "http://127.0.0.1:5173",
-###             ]
-###        }
-###     },
-### )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -139,7 +124,6 @@ task_storage = {}
 MAX_TASK_AGE = 3600  # Keep completed tasks for 1 hour
 task_lock = threading.Lock()
 
-# Task completion estimate helper
 def make_progress_callback(task_id):
     def progress_update(p):
         with task_lock:
@@ -359,7 +343,6 @@ def cleanup_old_tasks():
             del task_storage[task_id]
 
 
-# Run cleanup every 5 minutes
 @app.before_request
 def periodic_cleanup():
     if not hasattr(app, '_cleanup_last_run'):

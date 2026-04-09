@@ -38,6 +38,8 @@ class: default
 ## Future Work
 <!-- Better Model Selection / Creation -->
 
+* Lazy loading for AI models
+
 ---
 ## 
 

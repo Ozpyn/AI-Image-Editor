@@ -12,6 +12,8 @@ The flask definition contains the location of the built front end
 
 #### The following contains definitions for `app.py`
 
+There is a collection of functions built to assist the serving of the documentation associated with this project. `load_safe_file()` ensures it is only loading the docs that match the location of where they are supposed to be: /docs . `rewrite_links()` parses each markdown file and determines if it has links that would route to another markdown file or asset and converts it into a navigable link. `render_md()` applys some extensions to the markdown so that it appears uniform when viewed from the generated links. `TEMPLATE` is more or less just defining how to show the markdown, and what theme to use. `docs_index()` defined the README.md in the root of the project as the entrypoint to documentation and is tied to the route for `/docs`. `docs()` loads each markdown document in the docs folder and provisions a valid url, and is tied to the `/docs/<path:doc>` endpoint. `docs_assets()` is a simple function to allow loading of images or other assets into the markdown files.
+
 There is a `task_storage` object, it holds jobs for a set period of time before disposing of them and its contents.
 
 `make_progress_callback()` is a helper that is a factory function, it binds to a specific task in order to report on its specific progress, allowing the API to return an accurate completion percentage. The function takes in a task_id and reports the task progress.
