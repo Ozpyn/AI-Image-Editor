@@ -15,20 +15,20 @@ class: default
 - **Frameworks:**
   - [x] Frontend - React.js
   - [x] Backend - Python
+- **Features:**
+    - AI-Powered Featue: Inpainting, Image Captioning, and Image Generation
+    - Non-AI-Powered Featue: Image Uploading, Downloading, Editing, Undo, redo, Export & More
 - **Models:**
   - `runwayml/stable-diffusion-inpainting`
   - `Salesforce/blip-image-captioning-base`
   - `runwayml/stable-diffusion-v1-5`
-
 ---
-## Application Overview
-
-![w:1500](assets/app-overview-flow.svg)
+## Architecture
+![bg fit](assets/app-overview-flow.svg)
 
 ---
 ## FrontEnd
 - Built as a React.js single-page application with a component-based layout
-- Main UI is divided into `MenuBar`, `ToolBox`, `CanvasArea`, `PropertiesPanel`, and `Footer`
 - We use **Fabric.js** to create and manage the editable canvas, so images, text, brush strokes, and masks can be handled as objects
 - Tool behavior is controlled by React state through `activeTool`, then passed into `useCanvas()` and `canvasUtils.js` to activate the correct mode
 - The `ToolBox` is used to switch between editing tools such as Select, Crop, Brush, Mask, Erase, Text, Heal, and Adjust
@@ -48,6 +48,8 @@ class: default
 
 ---
 ## Challenges
+<!-- Resource Usage -->
+<!-- Model Flaws -->
 - Due to resource constraints, we were limited to using free and open-source AI models
 - Limited server space and compute made it difficult to host and run multiple models at the same time
 - Because of these restrictions, users cannot yet choose from several model options for the same feature
@@ -55,15 +57,17 @@ class: default
 
 ---
 ## Future Work
+<!-- Better Model Selection / Creation -->
 - Explore stronger and more specialized models to improve output quality
 - Expand server capacity so multiple models can be deployed and offered as user-selectable options
 - Add more AI features that were part of the original vision but could not be completed in this phase
 - Continue optimizing model performance, speed, and reliability for real-time editing workflows
 
-* Lazy loading for AI models
 
 ---
 ## 
 
 
 ---
+
+
