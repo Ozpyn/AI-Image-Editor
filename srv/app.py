@@ -1,7 +1,9 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_file, send_from_directory, render_template_string, abort
 ### from flask_cors import CORS
-import json, os, threading, uuid, time, tempfile
+import json, os, threading, uuid, time, tempfile, re
 from io import BytesIO
+import markdown
+
 from ai import run_inpaint, run_outpaint, run_deblur, run_describe, run_remove_background, run_replace_background
 
 app = Flask(
@@ -23,6 +25,115 @@ app = Flask(
 ###        }
 ###     },
 ### )
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
+
+DOCS_ROOT = os.path.join(PROJECT_ROOT, "docs")
+README_PATH = os.path.join(PROJECT_ROOT, "README.md")
+
+def load_file_safe(base, relative_path):
+    full_path = os.path.abspath(os.path.join(base, relative_path))
+
+    if not full_path.startswith(base):
+        abort(403)
+
+    if not os.path.exists(full_path):
+        abort(404)
+
+    with open(full_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+from urllib.parse import urljoin
+
+def rewrite_links(html, current_path):
+    def repl(match):
+        href = match.group(1)
+
+        if not href.endswith(".md"):
+            return match.group(0)
+
+        joined = os.path.normpath(os.path.join(current_path, href))
+
+        if joined in ("README.md", "../README.md"):
+            return 'href="/docs"'
+
+        joined = joined.replace("\\", "/")
+        joined = joined.lstrip("./")
+        joined = joined.replace("docs/", "")
+
+        if joined.endswith(".md"):
+            joined = joined[:-3]
+
+        return f'href="/docs/{joined}"'
+
+    return re.sub(r'href="([^"]+)"', repl, html)
+
+
+def render_md(md_text, current_path=""):
+    html = markdown.markdown(
+        md_text,
+        extensions=["fenced_code", "tables", "codehilite"]
+    )
+    return rewrite_links(html, current_path)
+
+TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css/github-markdown.min.css">
+    <style>
+        body {
+            background: #fff;
+        }
+        .markdown-body {
+            box-sizing: border-box;
+            max-width: 900px;
+            margin: auto;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <article class="markdown-body">
+        {{ content|safe }}
+    </article>
+</body>
+</html>
+"""
+
+
+@app.route("/docs")
+@app.route("/docs/")
+def docs_index():
+    with open(README_PATH, "r", encoding="utf-8") as f:
+        md = f.read()
+    return render_template_string(
+        TEMPLATE,
+        content=render_md(md, "")
+    )
+
+
+@app.route("/docs/<path:doc>")
+def docs(doc):
+    if not doc.endswith(".md"):
+        doc += ".md"
+
+    md = load_file_safe(DOCS_ROOT, doc)
+
+    current_dir = os.path.dirname(doc)
+
+    return render_template_string(
+        TEMPLATE,
+        content=render_md(md, current_dir)
+    )
+
+
+@app.route("/docs/assets/<path:filename>")
+def docs_assets(filename):
+    return send_from_directory(os.path.join(DOCS_ROOT, "assets"), filename)
+
 
 task_storage = {}
 MAX_TASK_AGE = 3600  # Keep completed tasks for 1 hour
