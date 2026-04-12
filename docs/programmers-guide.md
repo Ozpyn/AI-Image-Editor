@@ -127,3 +127,94 @@ python3 srv/app.py
 ## Technical Documentation
 
 ## Maintenance and Future Work
+This section helps future programmers fix bugs and extend the project quickly.
+
+### How the software is organized
+
+1. Frontend (`frontend/`): React UI + Fabric canvas tools.
+2. Backend (`srv/`): Flask API + AI model functions.
+
+The frontend sends image/mask data to backend endpoints. Slow AI jobs return `202` with a `task_id`, and the frontend polls `/api/task/<task_id>` until task completion.
+
+### Important functions to know
+
+#### Frontend
+
+* `useCanvas` in `frontend/src/features/canvas/useCanvas.jsx`
+    1. Main canvas controller (tools, zoom, import/export, undo/redo).
+    2. History logic: `pushHistorySnapshot()` and `restoreSnapshot()`.
+
+* `setToolMode` in `frontend/src/features/canvas/canvasUtils.js`
+    1. Switches tool behavior (select, brush, crop, heal, rotate, mask, erase, text).
+    2. Export helpers create blobs for backend AI calls.
+
+* `useAiFeatures` in `frontend/src/features/aiFeatures/useAiFeatures.jsx`
+    1. API wrappers: `inpaintFromCanvas`, `outpaintFromCanvas`, `deblurFromCanvas`, `describeFromCanvas`, `removeBackground`, `replaceBackground`.
+    2. Polling logic: `pollTaskResult()` and `fetchBlob()`.
+
+#### Backend
+
+* `srv/app.py`
+    1. Main API routes and async task handling.
+    2. `task_storage` keeps temporary task state.
+    3. `_run_task_async()` runs model work in background threads.
+
+* `srv/ai.py`
+    1. Model functions: `run_inpaint`, `run_outpaint`, `run_deblur`, `run_describe`, `run_remove_background`, `run_replace_background`.
+    2. `DEVICE` and `DTYPE` choose hardware mode.
+
+### Key data structures
+
+Backend task record (`task_storage[task_id]`):
+
+```python
+{
+  "status": "processing" | "completed" | "failed",
+  "result": bytes | None,
+  "error": str | None,
+  "created_at": float,
+  "progress": int
+}
+```
+
+Frontend canvas state stores custom fields like:
+
+1. `canvas.__fitScale`, `canvas.__zoomLevel`
+2. `canvas.__adjustments`
+3. `canvas.__toolHandlers`
+4. Undo/redo stacks in `undoStackRef.current` and `redoStackRef.current`
+
+### Common maintenance issues
+
+1. `task_storage` is in-memory only (not durable across restarts/multi-worker setups).
+4. Temporary output cleanup is incomplete in some routes.
+5. Excessive VRAM Usage, likely need to use smaller models or memory efficient xformers.
+
+### Safe extension checklist
+
+For a new AI feature:
+
+1. Add model function in `srv/ai.py`.
+2. Add route in `srv/app.py`.
+3. Use async task flow for long jobs.
+4. Add frontend wrapper in `useAiFeatures.jsx`.
+5. Add UI controls in menu/properties panel.
+6. Verify undo/redo and result apply behavior.
+
+For a new manual tool:
+
+1. Add/update tool mode in `canvasUtils.js`.
+2. Wire tool state in `App.jsx`.
+3. Add tool controls in UI.
+4. Mark helper objects as transient so history is not polluted.
+
+### Future work
+
+1. Replace in-memory task threads with a durable queue (Redis + worker).
+2. Standardize API input fields and output format across endpoints.
+3. Add a real layer system (visibility, lock, blend modes).
+4. Improve mask editing (feather, edge refine, lasso/polygon).
+5. Add multiple export formats.
+6. Add drag-and-drop and clipboard image input.
+7. Add containerized deployment and CI for Linux/macOS/Windows.
+8. Add backend and frontend integration tests for core flows.
