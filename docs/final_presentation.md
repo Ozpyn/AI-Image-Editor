@@ -90,13 +90,25 @@ class: default
 
 ---
  # BackEnd
-## Models Used
-`runwayml/stable-diffusion-inpainting`
-  - `Salesforce/blip-image-captioning-base`
-  - `runwayml/stable-diffusion-v1-5`
-## Functionality
+## Technologies Used
+  - Flask API to connect the React frontend with local AI services
+  - PyTorch + Hugging Face Diffusers/Transformers for model inference
+  - PIL/Pillow for image resizing, mask blending, and PNG processing
+  - `rembg` for background removal before replacement workflows
 
-# Technologies Used
+---
+## Models Used
+  - `runwayml/stable-diffusion-inpainting` for inpainting and outpainting
+  - `runwayml/stable-diffusion-v1-5` for deblurring with img2img generation
+  - `Salesforce/blip-image-captioning-base` for image description and prompt generation
+
+---
+## Functionality
+  - API endpoints support inpaint, outpaint, deblur, describe, remove background, and replace background
+  - Longer AI jobs run asynchronously in background threads and return a `task_id`
+  - The frontend polls `/api/task/<task_id>` to receive progress updates and the final PNG result
+  - Temporary files are created for uploads/results, then cleaned up to reduce server memory usage
+  - The backend automatically uses `CUDA`, `MPS`, or `CPU` depending on the machine
 
 ---
 ![bg fit](assets/inpaint-flow.png)
@@ -128,4 +140,3 @@ https://aiedit.ozpyn.dev
 
 
 ---
-
