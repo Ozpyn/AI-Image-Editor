@@ -11,16 +11,15 @@ class: default
 
 ---
 ## Introduction
-- **Project:** An AI Powered Web-Based Application
+- **Project:** An AI Powered Web-Based Graphics Application
 - **Frameworks:**
   - [x] Frontend - React.js
   - [x] Backend - Python
 - **Features:**
-    - AI-Powered Featue: Inpainting, Image Captioning, and Image Generation
+    - AI-Powered Featue: Inpainting, Background Removal, Deblurrring & Background Replacement
     - Non-AI-Powered Featue: Image Uploading, Downloading, Editing, Undo, redo, Export & More
 - **Models:**
   - `runwayml/stable-diffusion-inpainting`
-  - `Salesforce/blip-image-captioning-base`
   - `runwayml/stable-diffusion-v1-5`
 ---
 ## Architecture
@@ -35,6 +34,9 @@ class: default
 - The `PropertiesPanel` provides controls for brush size, color, heal flow, image adjustments, and AI settings like prompt, guidance scale, steps, and seed
 - For AI features, React exports the current canvas image and mask as **Blob** objects, then sends them to the Flask API
 - When the backend returns the processed result, the frontend applies that blob back onto the Fabric canvas as the updated image layer
+
+---
+![bg fit](assets/inpaint-flow.png)
 
 ---
 ## BackEnd
