@@ -124,7 +124,7 @@ python3 srv/app.py
 
 ## Architecture & Design
 The figure below shows the high level architecture of the project. The frontend handles user interactions and canvas management, while the backend processes AI tasks asynchronously and serves results back to the frontend. The application code is organized into separate modules for clarity and maintainability, with clear interfaces between the frontend and backend through API endpoints. App.jsx serves as the main entry point for the React application, managing global state and routing. The `useCanvas` hook encapsulates all canvas-related logic, while `useAiFeatures` manages interactions with the backend AI endpoints. On the backend, `app.py` defines API routes and task management, while `ai.py` contains the core logic for each AI feature. This modular design allows for easy extension and maintenance of both frontend and backend components.
-![bg fit](assets/app-overview-flow.svg)
+![bg fit](assets/app-overview-flow.png)
 When a user interacts with the frontend from the menu bar or properties panel, the React state is updated to reflect the active tool and its settings. The infromation is sent to App.jsx, which passes the relevant data down to the `useCanvas` hook. The `useCanvas` hook then updates the Fabric canvas accordingly, whether that means changing the cursor for a new tool, applying brush strokes, or exporting the current canvas state as blobs for AI processing. When an AI feature is activated, the frontend sends the image and mask blobs to the backend API. The backend processes the request asynchronously, updating the task status in `task_storage`. The frontend polls for task completion and applies the resulting image back onto the canvas once ready. This flow ensures a responsive user experience while handling potentially time-consuming AI operations in the background.
 ## Technical Documentation
 Below is a flow chart that shows the flow of data and function calls for a single AI operation, in this case inpainting. The user initiates the inpaint action from the frontend, which triggers a series of function calls that ultimately result in the processed image being applied back to the canvas.
@@ -133,11 +133,26 @@ Below is a flow chart that shows the flow of data and function calls for a singl
 For Undo, Redo operations, the flow is more straightforward. When the user performs an action that modifies the canvas, a snapshot of the current state is pushed onto the undo stack.
 Below is a pseudocode representation of the undo/redo flow:
 ```javascript
-function performAction(action) {
-  // Apply the action to the canvas
-  applyActionToCanvas(action);  
-    // Push the current canvas state onto the undo stack
-    pushHistorySnapshot();
+Algorithm: performAction(argumentType)
+
+Begin
+    Snapshot <- Canvas.currentState
+    HistoryStack.push(Snapshot)
+    SnapshotCount <- SnapshotCount + 1
+
+    Apply Action(argumentType) -> Canvas
+    CanvasRender <- CanvasRender + 1
+
+    If ActionSuccess = true Then
+        ResultState <- Canvas.updatedState
+        RedoStack <- empty
+        UndoPointer <- UndoPointer + 1
+        Return ResultState
+    Else
+        Return ErrorState
+    End If
+End
+
 ```  
  If the user clicks undo, the most recent snapshot is popped from the undo stack and applied to the canvas, while also being pushed onto the redo stack. If redo is clicked, the process is reversed. This allows users to easily navigate through their editing history without worrying about complex state management, as all snapshots are stored as simple JSON representations of the canvas state.
 ## Maintenance and Future Work

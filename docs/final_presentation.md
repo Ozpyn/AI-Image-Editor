@@ -23,7 +23,7 @@ class: default
   - `runwayml/stable-diffusion-v1-5`
 ---
 ## Architecture
-![bg fit](assets/app-overview-flow.svg)
+![bg fit](assets/app-overview-flow.png)
 
 ---
 ## FrontEnd
