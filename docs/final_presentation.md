@@ -10,19 +10,25 @@ class: default
 ### Aaliyah Creech, Nickson Ibrahim, Gabriel Mingle, Gloria Uwimbabazi 
 
 ---
-## Introduction
-- **Project:** An AI Powered Web-Based Graphics Application
-- **Frameworks:**
+# Project Overview
+- A web-based image editing application
+
+- Allows users to import, edit, and enhance images interactively
+
+- Designed to integrate traditional image editing tools (Brush, Crop, Text, Erase, Rotate, Etc) with AI-powered features (Deblur, Inpainting, Background Removal, Background Replacement).
+
+---
+# Framework And Editing Functions
+## Framework
   - [x] Frontend - React.js
   - [x] Backend - Python
-- **Features:**
-    - AI-Powered Featue: Inpainting, Background Removal, Deblurrring & Background Replacement
-    - Non-AI-Powered Featue: Image Uploading, Downloading, Editing, Undo, redo, Export & More
-- **Models:**
-  - `runwayml/stable-diffusion-inpainting`
-  - `runwayml/stable-diffusion-v1-5`
+## Editing Functions
+    - AI-Based Editing Features: Inpainting, Background Removal, Background Replacement and Deblur
+    - Basic Editing Functions: Select, crop, rotate, text, heal, brush, erase and adjust,etc
+
 ---
-## Architecture
+# Architecture
+
 ![bg fit](assets/app-overview-flow.png)
 
 ---
@@ -36,49 +42,75 @@ class: default
 - When the backend returns the processed result, the frontend applies that blob back onto the Fabric canvas as the updated image layer
 
 ---
+## Undo/Redo Implementation
+### How We Implemented Undo & Redo
+- Built inside useCanvas (React hook)
+- Used two stacks:
+  - undoStackRef: stores previously committed canvas states. 
+  - redoStackRef: stores states that have been undone and can be restored.
+- Each state saved as:
+  - canvas.toJSON() (Fabric.js snapshot)
+- Restored using:
+  - canvas.loadFromJSON()
+
+---
+## Saving State
+### Saving Canvas State
+- Triggered after user actions:
+  - Non-AI edits and AI edits
+- Avoid duplicates
+- Clear redo stack on new action
+### Procedure SaveState(state):
+    if undoStack is empty OR top ≠ state:
+        push state to undoStack
+        clear redoStack
+---
+## Undo Logic
+### Undo Operation
+- Move current state → redo stack
+- Restore previous state
+### Procedure Undo():
+    if undoStack has more than 1 state:
+        current ← pop undoStack
+        push current to redoStack
+        previous ← top undoStack
+        restore previous
+---
+## Redo Logic
+### Redo Operation
+- Move state back → undo stack
+- Restore it
+### Procedure Redo():
+    if redoStack is not empty:
+        next ← pop redoStack
+        push next to undoStack
+        restore next
+---
+![bg fit](assets/image-1.png)
+
+---
+ # BackEnd
+## Models Used
+`runwayml/stable-diffusion-inpainting`
+  - `Salesforce/blip-image-captioning-base`
+  - `runwayml/stable-diffusion-v1-5`
+## Functionality
+
+# Technologies Used
+
+---
 ![bg fit](assets/inpaint-flow.png)
 
 ---
-## Undo / Redo Algorithm
-
-```text
-Algorithm: performAction(argumentType)
-
-Begin
-    Snapshot <- Canvas.currentState
-    HistoryStack.push(Snapshot)
-    SnapshotCount <- SnapshotCount + 1
-
-    Apply Action(argumentType) -> Canvas
-    CanvasRender <- CanvasRender + 1
-
-    If ActionSuccess = true Then
-        ResultState <- Canvas.updatedState
-        RedoStack <- empty
-        UndoPointer <- UndoPointer + 1
-        Return ResultState
-    Else
-        Return ErrorState
-    End If
-End
-```
-
----
-## BackEnd
-<!-- Models Used -->
-<!-- Functionality -->
-<!-- Technologies Used -->
-
----
 ## Demo (Live)
-
+https://aiedit.ozpyn.dev
 
 ---
 ## Challenges
 <!-- Resource Usage -->
 <!-- Model Flaws -->
 - Due to resource constraints, we were limited to using free and open-source AI models
-- Limited server space and compute made it difficult to host and run multiple models at the same time
+- Limited server space and computer made it difficult to host and run multiple models at the same time
 - Because of these restrictions, users cannot yet choose from several model options for the same feature
 - Time constraints also prevented us from implementing all of the AI features we originally planned
 
