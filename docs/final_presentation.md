@@ -39,6 +39,31 @@ class: default
 ![bg fit](assets/inpaint-flow.png)
 
 ---
+## Undo / Redo Algorithm
+
+```text
+Algorithm: performAction(argumentType)
+
+Begin
+    Snapshot <- Canvas.currentState
+    HistoryStack.push(Snapshot)
+    SnapshotCount <- SnapshotCount + 1
+
+    Apply Action(argumentType) -> Canvas
+    CanvasRender <- CanvasRender + 1
+
+    If ActionSuccess = true Then
+        ResultState <- Canvas.updatedState
+        RedoStack <- empty
+        UndoPointer <- UndoPointer + 1
+        Return ResultState
+    Else
+        Return ErrorState
+    End If
+End
+```
+
+---
 ## BackEnd
 <!-- Models Used -->
 <!-- Functionality -->
@@ -71,5 +96,4 @@ class: default
 
 
 ---
-
 
