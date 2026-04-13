@@ -29,7 +29,7 @@ class: default
 ---
 # Architecture
 
-![bg fit](assets/app-overview-flow.svg)
+![bg fit](assets/app-overview-flow.png)
 
 ---
 ## FrontEnd
@@ -86,7 +86,7 @@ class: default
         push next to undoStack
         restore next
 ---
-![bg fit](image-1.png)
+![bg fit](assets/image-1.png)
 
 ---
  # BackEnd
@@ -97,6 +97,9 @@ class: default
 ## Functionality
 
 # Technologies Used
+
+---
+![bg fit](assets/inpaint-flow.png)
 
 ---
 ## Demo (Live)
@@ -125,5 +128,4 @@ https://aiedit.ozpyn.dev
 
 
 ---
-
 
