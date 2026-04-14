@@ -111,6 +111,7 @@ class: default
   - `runwayml/stable-diffusion-inpainting` for inpainting and outpainting
   - `runwayml/stable-diffusion-v1-5` for deblurring with img2img generation
   - `Salesforce/blip-image-captioning-base` for image description and prompt generation
+  - `U2Net` for background removal implemented via the `rembg` python library 
 
 ---
 ## Functionality

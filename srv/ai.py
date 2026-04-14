@@ -3,7 +3,7 @@ from PIL import Image, ImageFilter
 from diffusers.utils import load_image
 from diffusers import StableDiffusionInpaintPipeline, StableDiffusionImg2ImgPipeline
 from transformers import BlipProcessor, BlipForConditionalGeneration, logging
-from rembg import remove
+from rembg import remove 
 import tempfile
 import io
 
@@ -39,9 +39,10 @@ def run_inpaint(image, mask, prompt=None, progress_callback=None):
     mask = Image.open(mask).convert("L")
     original_size = image.size
     prompt = prompt or ""
-    guidance = 1.0 if prompt == "" else 4.0
+    guidance = 1.0 if prompt == "" else 7.5
+    strength = 0.75 if prompt == "" else 1.0
 
-    total_steps = 40
+    total_steps = 30 if prompt == "" else 40
 
     def callback(step, timestep, latents):
         if progress_callback:
@@ -53,10 +54,11 @@ def run_inpaint(image, mask, prompt=None, progress_callback=None):
             prompt=prompt,
             image=image,
             mask_image=mask,
+            strength=strength,
             guidance_scale=guidance,
             num_inference_steps=total_steps,
             callback=callback,
-            callback_steps=1,
+            callback_steps=2,
         )
 
     output_image = result.images[0].resize(original_size, Image.Resampling.LANCZOS)
@@ -94,7 +96,18 @@ def run_outpaint(image, directions, prompt=None, progress_callback=None):
     new_mask = Image.new("L", mod_image.size, 255)
     new_mask.paste(Image.new("L", (w, h), 0), (left, top))
 
-    return run_inpaint(mod_image, new_mask, prompt, progress_callback)
+    # Convert mod_image to bytes
+    img_bytes = io.BytesIO()
+    mod_image.save(img_bytes, format='PNG')
+    img_bytes.seek(0)
+    
+    # Also convert mask to bytes
+    mask_bytes = io.BytesIO()
+    new_mask.save(mask_bytes, format='PNG')
+    mask_bytes.seek(0)
+    
+    
+    return run_inpaint(img_bytes, mask_bytes, prompt, progress_callback)
 
 def run_deblur(image, prompt=None, progress_callback=None):
     image = Image.open(image).convert("RGB")
@@ -165,26 +178,38 @@ def run_remove_background(image):
     return tmp.name
 
 
-def run_replace_background(image, prompt=None):
+def run_replace_background(image, prompt=None, progress_callback=None):
     image = Image.open(image).convert("RGBA")
-    prompt = prompt or "a clean, natural background behind the subject"
-
+    prompt = prompt or "a clean, natural background"
+    
+    # Remove background
     img_byte_arr = io.BytesIO()
     image.save(img_byte_arr, format="PNG")
-
     removed = remove(img_byte_arr.getvalue())
     foreground = Image.open(io.BytesIO(removed)).convert("RGBA")
-
+    
+    # Create a solid colored background instead of transparent
+    background = Image.new("RGB", image.size, (128, 128, 128))  # Neutral gray
+    background.paste(foreground, (0, 0), foreground)
+    
+    # Create mask (white where background should be generated)
+    mask = Image.new("L", image.size, 0)
     alpha = foreground.split()[-1]
-    mask = alpha.point(lambda a: 255 if a == 0 else 0).convert("RGB")
-    rgb_foreground = foreground.convert("RGB")
-
+    mask_data = mask.load()
+    alpha_data = alpha.load()
+    
+    for x in range(image.size[0]):
+        for y in range(image.size[1]):
+            if alpha_data[x, y] == 0:
+                mask_data[x, y] = 255
+    
+    # Convert to bytes
+    bg_bytes = io.BytesIO()
+    background.save(bg_bytes, format="PNG")
+    bg_bytes.seek(0)
+    
     mask_bytes = io.BytesIO()
     mask.save(mask_bytes, format="PNG")
     mask_bytes.seek(0)
-
-    fg_bytes = io.BytesIO()
-    rgb_foreground.save(fg_bytes, format="PNG")
-    fg_bytes.seek(0)
-
-    return run_inpaint(fg_bytes, mask_bytes, prompt)
+    
+    return run_inpaint(bg_bytes, mask_bytes, prompt, progress_callback)
