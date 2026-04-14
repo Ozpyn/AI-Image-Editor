@@ -32,7 +32,7 @@ class: default
   - [x] Frontend - React.js
   - [x] Backend - Python
 ## Editing Functions
-    - AI-Based Editing Features: Inpainting, Background Removal, Background Replacement and Deblur
+    - AI-Based Editing Features: Inpainting, Background Removal, Background Replacement and Deblur    
     - Basic Editing Functions: Select, crop, rotate, text, heal, brush, erase and adjust,etc
 
 ---
@@ -98,6 +98,7 @@ class: default
 ![bg fit](assets/image-1.png)
 
 ---
+
  # BackEnd
 ## Technologies Used
   - Flask API to connect the React frontend with local AI services
@@ -123,6 +124,13 @@ class: default
 ![bg fit](assets/inpaint-flow.png)
 
 ---
+# AI Background Functionality
+- Remove Background: uses `rembg` to isolate the subject and return a transparent PNG
+- Replace Background: removes the background, builds a foreground mask, then inpaints a new scene with `runwayml/stable-diffusion-inpainting`
+- The frontend exports the canvas image as a blob, sends it to Flask, and reapplies the returned PNG to the Fabric canvas
+- Prompt-driven replacement allows users to generate a new background scene based on natural language
+
+--- 
 ## Deblur
 
 1. The user imports an image they wish was less blurred.
