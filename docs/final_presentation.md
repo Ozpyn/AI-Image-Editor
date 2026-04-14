@@ -59,10 +59,8 @@ class: default
 - Used two stacks:
   - undoStackRef: stores previously committed canvas states. 
   - redoStackRef: stores states that have been undone and can be restored.
-- Each state saved as:
-  - canvas.toJSON() (Fabric.js snapshot)
-- Restored using:
-  - canvas.loadFromJSON()
+- Each state saved as canvas.toJSON() (Fabric.js snapshot)
+- Restored using canvas.loadFromJSON()
 
 ---
 ## Saving State
