@@ -152,7 +152,7 @@ export default function MenuBar({
                   {/* Inpaint action */}
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-200 hover:bg-white/5"
+                    className="w-full px-3 py-2 mb-1 text-left text-sm text-gray-200 hover:bg-white/5"
                     onClick={() => {
                       onToolSelect("ai.inpaint");
                       setAiDropdownOpen(false);
@@ -164,7 +164,7 @@ export default function MenuBar({
                   {/* Outpaint action */}
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-200 hover:bg-white/5"
+                    className="w-full px-3 py-2 mb-1 text-left text-sm text-gray-200 hover:bg-white/5"
                     onClick={() => {
                       onToolSelect("ai.outpaint");
                       setAiDropdownOpen(false);
@@ -176,7 +176,7 @@ export default function MenuBar({
                   {/* Deblur action */}
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-200 hover:bg-white/5"
+                    className="w-full px-3 py-2 mb-1 text-left text-sm text-gray-200 hover:bg-white/5"
                     onClick={() => {
                       onToolSelect("ai.deblur");
                       setAiDropdownOpen(false);
@@ -188,7 +188,7 @@ export default function MenuBar({
                   {/* Background Magic action */}
                   <button
                     type="button"
-                    className="w-full px-3 py-2 text-left text-sm text-gray-200 hover:bg-white/5"
+                    className="w-full px-3 py-2 mb-1 text-left text-sm text-gray-200 hover:bg-white/5"
                     onClick={() => {
                       onToolSelect("ai.backgroundmagic");
                       setAiDropdownOpen(false);
