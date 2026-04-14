@@ -112,7 +112,8 @@ class: default
   - `runwayml/stable-diffusion-v1-5` for deblurring with img2img generation
   - `Salesforce/blip-image-captioning-base` for image description and prompt generation
   - `Restomer` a deep learning model designed for image restoration tasks such as denoising, deblurring, and super-resolution. It is based on a transformer architecture that operates directly on high-resolution images, allowing it to capture both local and global features effectively. 
-  
+  - `U2Net` for background removal implemented via the `rembg` python library 
+
 ---
 ## Functionality
   - API endpoints support inpaint, outpaint, deblur, describe, remove background, and replace background
@@ -139,7 +140,7 @@ These weights are trained to restore images affected by motion blur, making them
 
 ---
 
-![bg fit](<Deblur implementation flow.png>))
+![bg fit](assets/Deblur%20implementation%20flow.png))
 
 ---
 
