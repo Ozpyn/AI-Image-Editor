@@ -10,6 +10,15 @@ class: default
 ### Aaliyah Creech, Nickson Ibrahim, Gabriel Mingle, Gloria Uwimbabazi 
 
 ---
+# Presentation Content
+1. Project Overview
+2. Framework and Architecture
+    - Frontend
+    - Backend
+4. Demo
+5. Challenges
+6. Future Work
+---
 # Project Overview
 - A web-based image editing application
 
@@ -27,7 +36,6 @@ class: default
     - Basic Editing Functions: Select, crop, rotate, text, heal, brush, erase and adjust,etc
 
 ---
-# 
 
 ![bg fit](assets/app-overview-flow.png)
 
@@ -37,6 +45,9 @@ class: default
 - We use **Fabric.js** to create and manage the editable canvas, so images, text, brush strokes, and masks can be handled as objects
 - Tool behavior is controlled by React state through `activeTool`, then passed into `useCanvas()` and `canvasUtils.js` to activate the correct mode
 - The `ToolBox` is used to switch between editing tools such as Select, Crop, Brush, Mask, Erase, Text, Heal, and Adjust
+
+---
+## FrontEnd (Cont.)
 - The `PropertiesPanel` provides controls for brush size, color, heal flow, image adjustments, and AI settings like prompt, guidance scale, steps, and seed
 - For AI features, React exports the current canvas image and mask as **Blob** objects, then sends them to the Flask API
 - When the backend returns the processed result, the frontend applies that blob back onto the Fabric canvas as the updated image layer
@@ -48,10 +59,8 @@ class: default
 - Used two stacks:
   - undoStackRef: stores previously committed canvas states. 
   - redoStackRef: stores states that have been undone and can be restored.
-- Each state saved as:
-  - canvas.toJSON() (Fabric.js snapshot)
-- Restored using:
-  - canvas.loadFromJSON()
+- Each state saved as canvas.toJSON() (Fabric.js snapshot)
+- Restored using canvas.loadFromJSON()
 
 ---
 ## Saving State
@@ -122,6 +131,16 @@ class: default
 - Prompt-driven replacement allows users to generate a new background scene based on natural language
 
 --- 
+## Deblur
+
+1. The user imports an image they wish was less blurred.
+2. The app exports the image and an optional prompt and sends it to the API
+3. The API determines if it has received a prompt, and generates one if it hasn't.
+4. Then it runs the Deblur Pipe which built on `runwayml/stable-diffusion-v1-5`
+5. It will then return the resulting image.
+
+---
+
 ## Demo (Live)
 https://aiedit.ozpyn.dev
 
@@ -144,7 +163,8 @@ https://aiedit.ozpyn.dev
 
 
 ---
-## 
-
+## Appreciation (Thank you for listening!)
+- We want to thank our professor, Prof. Ye, for his guidance and support throughout
+- We also want to thank our classmates for their feedback and encouragement during the pairwise meetings and presentations
 
 ---
