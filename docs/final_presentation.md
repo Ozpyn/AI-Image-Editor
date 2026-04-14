@@ -114,6 +114,16 @@ class: default
 ![bg fit](assets/inpaint-flow.png)
 
 ---
+## Deblur
+
+1. The user imports an image they wish was less blurred.
+2. The app exports the image and an optional prompt and sends it to the API
+3. The API determines if it has received a prompt, and generates one if it hasn't.
+4. Then it runs the Deblur Pipe which built on `runwayml/stable-diffusion-v1-5`
+5. It will then return the resulting image.
+
+---
+
 ## Demo (Live)
 https://aiedit.ozpyn.dev
 

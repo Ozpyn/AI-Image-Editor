@@ -32,18 +32,6 @@ caption_model = BlipForConditionalGeneration.from_pretrained(
     torch_dtype=DTYPE
 ).to(DEVICE)
 
-deblur_pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
-    "runwayml/stable-diffusion-v1-5",
-    torch_dtype=DTYPE
-).to(DEVICE)
-
-caption_processor = BlipProcessor.from_pretrained(
-    "Salesforce/blip-image-captioning-base"
-)
-caption_model = BlipForConditionalGeneration.from_pretrained(
-    "Salesforce/blip-image-captioning-base"
-).to(DEVICE)
-
 # inpainting_pipe.enable_xformers_memory_efficient_attention()
 
 def run_inpaint(image, mask, prompt=None, progress_callback=None):
@@ -118,7 +106,7 @@ def run_deblur(image, prompt=None, progress_callback=None):
             out = caption_model.generate(**inputs, max_new_tokens=50)
         prompt = caption_processor.decode(out[0], skip_special_tokens=True)
 
-    strength = 0.35
+    strength = 0.1
     total_steps = 40
 
     def callback(step, timestep, latents):
@@ -131,7 +119,7 @@ def run_deblur(image, prompt=None, progress_callback=None):
             prompt=prompt,
             image=image,
             strength=strength,
-            guidance_scale=4.0,
+            guidance_scale=1.1,
             num_inference_steps=total_steps,
             callback=callback,
             callback_steps=1,
