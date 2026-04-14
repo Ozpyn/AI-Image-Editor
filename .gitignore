@@ -31,3 +31,4 @@ srv/.venv
 srv/__pycache__/*
 srv/app.log
 node_modules
+srv/weights/*.pth
