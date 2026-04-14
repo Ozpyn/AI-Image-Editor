@@ -111,7 +111,8 @@ class: default
   - `runwayml/stable-diffusion-inpainting` for inpainting and outpainting
   - `runwayml/stable-diffusion-v1-5` for deblurring with img2img generation
   - `Salesforce/blip-image-captioning-base` for image description and prompt generation
-
+  - `Restomer` a deep learning model designed for image restoration tasks such as denoising, deblurring, and super-resolution. It is based on a transformer architecture that operates directly on high-resolution images, allowing it to capture both local and global features effectively. 
+  
 ---
 ## Functionality
   - API endpoints support inpaint, outpaint, deblur, describe, remove background, and replace background
@@ -131,13 +132,14 @@ class: default
 - Prompt-driven replacement allows users to generate a new background scene based on natural language
 
 --- 
-## Deblur
+# Deblur
+We used Restomer model for debluring but we specifically used the pretrained weights for motion deblurring, known as:
+motion_deblurring.pth
+These weights are trained to restore images affected by motion blur, making them ideal for our deblur feature and are accessible from "https://github.com/swz30/Restormer/releases"
 
-1. The user imports an image they wish was less blurred.
-2. The app exports the image and an optional prompt and sends it to the API
-3. The API determines if it has received a prompt, and generates one if it hasn't.
-4. Then it runs the Deblur Pipe which built on `runwayml/stable-diffusion-v1-5`
-5. It will then return the resulting image.
+---
+
+![bg fit](<Deblur implementation flow.png>))
 
 ---
 

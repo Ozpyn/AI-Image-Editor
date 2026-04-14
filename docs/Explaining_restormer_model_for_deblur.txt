@@ -1,0 +1,91 @@
+Using the Right Model for Deblurring
+Restormer
+Restormer is a deep learning model designed for image restoration tasks such as denoising, deblurring, and super-resolution.
+It is based on a transformer architecture that operates directly on high-resolution images, allowing it to capture both local and global features effectively. 
+This makes it particularly suitable for handling complex degradations like motion blur.
+
+Unlike diffusion-based models, Restormer does not require a prompt. It is a fully supervised image restoration model that directly learns how to remove blur from input images. 
+Therefore, no textual input is needed during inference.
+
+In our project, we specifically used the pretrained weights for motion deblurring, known as:
+motion_deblurring.pth
+These weights are trained to restore images affected by motion blur, making them ideal for our deblur feature.
+
+Setup and Integration
+1. Clone the Restormer Repository
+Inside the backend (srv folder), we cloned the Restormer repository:
+git clone https://github.com/swz30/Restormer.git restormer
+This provides access to the model architecture required for inference.
+
+
+2. Create a Weights Folder
+We created a directory to store pretrained model weights:
+mkdir -p weights
+
+
+3. Download Pretrained Motion Deblurring Weights
+The Restormer release page provides pretrained checkpoints:
+ https://github.com/swz30/Restormer/releases
+Steps:
+1.	Open the link in a browser 
+2.	Download motion_deblurring.pth 
+
+4. Place and Rename the File
+Move the downloaded file into:
+srv/weights/
+Rename it to:
+restormer_motion_deblurring.pth
+Final path:
+backend/weights/restormer_motion_deblurring.pth
+
+
+5. Update Dependencies
+We updated the requirements.txt file to include additional dependencies required for Restormer, such as:
+•	torch 
+•	torchvision 
+•	numpy 
+•	opencv-python 
+•	scikit-image 
+Then installed them using:
+pip install -r requirements.txt
+
+
+6. Modify Backend (ai.py)
+We replaced the previous deblurring implementation (which used a diffusion-based model) with Restormer.
+Key changes included:
+•	Importing the Restormer architecture directly from the cloned repository 
+•	Loading pretrained weights from the weights folder 
+•	Converting images to tensors before inference 
+•	Running the model in inference mode 
+•	Converting output tensors back to images 
+This ensured a more accurate and efficient deblurring process.
+
+Deblur Implementation Flow
+The deblurring pipeline follows these steps:
+1.	Input Image 
+o	The user uploads an image through the frontend. 
+2.	Preprocessing 
+o	The image is converted to RGB format. 
+o	It is normalized and converted into a tensor. 
+o	Padding is applied so dimensions are divisible by 8 (required by the model). 
+3. Model Inference
+o The Restormer model processes the image directly.
+o No prompt is required, as the model is trained specifically for motion deblurring.
+4.	Post-processing 
+o	Padding is removed to recover original dimensions. 
+o	Output is clamped to valid pixel values. 
+o	Converted back into a PIL image. 
+5.	Output 
+o	The processed image is saved temporarily. 
+o	Returned to the frontend via the API. 
+
+Why Restormer Was Chosen
+•	Designed specifically for image restoration tasks 
+•	Performs better than general-purpose models for deblurring 
+•	Handles motion blur effectively 
+•	Produces high-quality, realistic outputs 
+•	Efficient enough to integrate into our real-time application 
+
+Conclusion
+By integrating Restormer with pretrained motion deblurring weights, we significantly improved the quality of our deblur feature. The model provides reliable restoration of blurred images and enhances the overall capability of our AI Image Editor.
+

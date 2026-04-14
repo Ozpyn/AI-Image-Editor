@@ -274,15 +274,14 @@ def deblur():
     
     img_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
     request.files["image"].save(img_tmp.name)
-    prompt = request.form.get("prompt")
+    
     
     def run():
         progress_callback = make_progress_callback(task_id)
         output_path = run_deblur(
-            open(img_tmp.name, "rb"),
-            prompt,
-            progress_callback=progress_callback
-        )
+    open(img_tmp.name, "rb"),
+    progress_callback=progress_callback
+)
         with open(output_path, "rb") as f:
             result = f.read()
         os.unlink(output_path)

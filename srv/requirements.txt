@@ -5,3 +5,10 @@ transformers
 accelerate
 pillow
 markdown
+torch
+torchvision
+tqdm
+einops
+opencv-python
+scikit-image
+rembg
