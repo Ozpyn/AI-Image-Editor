@@ -7,6 +7,107 @@ The goal of this guide is to allow other people to re-create, continue, or modif
 
 ### Front End
 
+The frontend is responsible for presenting the editor interface, managing canvas state, exposing manual editing tools, collecting AI settings, exporting image data for backend processing, and applying returned results back to the canvas.
+
+#### Functional requirements
+
+The frontend shall provide the following user-facing functions:
+
+1. Import an image from local storage into the editor canvas.
+2. Display a canvas-based editing workspace with menu bar, toolbox, canvas area, and properties panel.
+3. Allow the user to select exactly one active tool at a time.
+4. Support manual tools for select, crop, rotate, brush, mask, erase, text, heal, and image adjustment.
+5. Support AI workflows for inpaint, outpaint, deblur, background removal, and background replacement.
+6. Export the visible canvas as a PNG image.
+7. Maintain undo and redo history across meaningful canvas edits.
+8. Resize the editing surface with the browser layout while keeping the image fitted into view.
+
+#### Inputs and outputs by frontend feature
+
+`File import`
+
+- Input: image file selected by the user.
+- Output: a Fabric image object placed on the canvas and fitted to the workspace.
+
+`Select`
+
+- Input: pointer click or drag on an existing object.
+- Output: active selection and object transforms such as move or resize.
+
+`Crop`
+
+- Input: crop rectangle placement and confirmation.
+- Output: image object updated to the selected crop bounds.
+
+`Rotate`
+
+- Input: rotate left, rotate right, reset rotation, or object rotation handle interaction.
+- Output: image angle changed and retained in canvas state.
+
+`Brush`
+
+- Input: color, size, and pointer stroke path.
+- Output: freehand path objects drawn onto the canvas.
+
+`Mask`
+
+- Input: mask brush size and pointer stroke path.
+- Output: path objects marked with mask metadata so they can be exported separately for inpainting.
+
+`Erase`
+
+- Input: eraser size and pointer movement over brush or mask content.
+- Output: selected stroke content removed from the canvas.
+
+`Text`
+
+- Input: pointer click position and typed text.
+- Output: editable text object added to the canvas.
+
+`Heal`
+
+- Input: source point, stamp size, flow, and paint path.
+- Output: pixel data on the active image updated by clone-style blending.
+
+`Adjust`
+
+- Input: brightness, contrast, and saturation values in the range `-1` to `1`.
+- Output: Fabric image filters updated on the current image.
+
+`Inpaint`
+
+- Input: exported image blob, exported mask blob, optional prompt, guidance scale, steps, and seed.
+- Output: generated replacement image applied back onto the canvas after the backend task completes.
+
+`Outpaint`
+
+- Input: exported image blob, direction map, and optional prompt.
+- Output: expanded image applied back onto the canvas after the backend task completes.
+
+`Deblur`
+
+- Input: exported image blob and optional prompt.
+- Output: sharpened image applied back onto the canvas after the backend task completes.
+
+`Background removal`
+
+- Input: image blob from the current canvas image.
+- Output: PNG with background removed, applied to the canvas.
+
+`Background replacement`
+
+- Input: image blob and prompt describing the new background.
+- Output: PNG with subject preserved and a generated background applied to the canvas.
+
+#### Frontend constraints and behavior
+
+- The application is a single-page React interface.
+- The canvas is managed with Fabric, so interactive objects are stored as Fabric objects rather than raw DOM elements.
+- Long-running AI operations must not block the browser UI. The client should remain responsive while polling for results.
+- Undo and redo should ignore temporary helper objects such as crop overlays and heal source markers.
+- Tool settings shown in the properties panel must reflect the active tool.
+- Exported mask data must match the image dimensions used for inpainting.
+
 ### Back End
 The flask definition contains the location of the built front end
 
@@ -126,6 +227,40 @@ python3 srv/app.py
 The figure below shows the high level architecture of the project. The frontend handles user interactions and canvas management, while the backend processes AI tasks asynchronously and serves results back to the frontend. The application code is organized into separate modules for clarity and maintainability, with clear interfaces between the frontend and backend through API endpoints. App.jsx serves as the main entry point for the React application, managing global state and routing. The `useCanvas` hook encapsulates all canvas-related logic, while `useAiFeatures` manages interactions with the backend AI endpoints. On the backend, `app.py` defines API routes and task management, while `ai.py` contains the core logic for each AI feature. This modular design allows for easy extension and maintenance of both frontend and backend components.
 ![bg fit](assets/app-overview-flow.png)
 When a user interacts with the frontend from the menu bar or properties panel, the React state is updated to reflect the active tool and its settings. The infromation is sent to App.jsx, which passes the relevant data down to the `useCanvas` hook. The `useCanvas` hook then updates the Fabric canvas accordingly, whether that means changing the cursor for a new tool, applying brush strokes, or exporting the current canvas state as blobs for AI processing. When an AI feature is activated, the frontend sends the image and mask blobs to the backend API. The backend processes the request asynchronously, updating the task status in `task_storage`. The frontend polls for task completion and applies the resulting image back onto the canvas once ready. This flow ensures a responsive user experience while handling potentially time-consuming AI operations in the background.
+
+### Front End Architecture
+
+The frontend is structured around a small set of React components and two main hooks:
+
+1. `App.jsx` owns shared UI state such as the active tool, brush settings, AI parameters, and the `canvasActions` object exposed by the canvas hook.
+2. Layout components in `frontend/src/components/layout/` render the visible interface:
+   - `menuBar.jsx` handles file import, AI tool selection, export, undo, and redo.
+   - `toolBox.jsx` renders the manual tools and context-specific controls for brush, rotate, mask, and erase workflows.
+   - `canvasArea.jsx` mounts the actual HTML canvas, handles resizing, and exposes buttons for import, clear, crop apply, crop cancel, zoom, and fit.
+   - `propertiesPanel.jsx` renders the right-side settings for brush, heal, adjust, and AI tools.
+3. `useCanvas.jsx` is the main stateful controller for the Fabric canvas. It initializes Fabric, registers tool behavior, stores history stacks, exposes canvas actions, and keeps zoom and adjustments synchronized with the UI.
+4. `canvasUtils.js` contains lower-level canvas operations such as tool-mode setup, crop logic, heal logic, export helpers, zoom helpers, image fitting, rotation, and result application.
+5. `useAiFeatures.jsx` is the client-side integration layer for backend AI routes. It exports the current canvas state to blobs, sends requests, polls asynchronous jobs where required, and applies the returned image back to the canvas.
+
+#### Frontend data flow
+
+The normal frontend data flow is:
+
+1. The user selects a tool or changes a setting in a visible React component.
+2. `App.jsx` stores that setting in React state.
+3. The state is passed into `CanvasArea`, which passes it into `useCanvas`.
+4. `useCanvas` updates the Fabric canvas by calling helpers in `canvasUtils.js`.
+5. If the action is AI-driven, `useAiFeatures.jsx` exports the image or mask from the Fabric canvas, calls the backend route, then applies the returned PNG back through `applyBlobResult`.
+
+#### Key frontend files
+
+- `frontend/src/App.jsx`: top-level state coordination.
+- `frontend/src/features/canvas/useCanvas.jsx`: canvas lifecycle, history, exposed actions.
+- `frontend/src/features/canvas/canvasUtils.js`: shared canvas algorithms and tool implementations.
+- `frontend/src/features/canvas/loadImage.js`: blob and image loading utilities.
+- `frontend/src/features/aiFeatures/useAiFeatures.jsx`: API integration and asynchronous task polling.
+- `frontend/src/components/layout/*.jsx`: visible editor panels and controls.
+
 ## Technical Documentation
 Below is a flow chart that shows the flow of data and function calls for a single AI operation, in this case inpainting. The user initiates the inpaint action from the frontend, which triggers a series of function calls that ultimately result in the processed image being applied back to the canvas.
 ![bg fit](assets/inpaint-flow.png)
@@ -155,6 +290,35 @@ End
 
 ```  
  If the user clicks undo, the most recent snapshot is popped from the undo stack and applied to the canvas, while also being pushed onto the redo stack. If redo is clicked, the process is reversed. This allows users to easily navigate through their editing history without worrying about complex state management, as all snapshots are stored as simple JSON representations of the canvas state.
+
+### Front End Implementation Notes
+
+The frontend uses React for UI state management and Fabric for interactive canvas behavior.
+
+- React state in `App.jsx` stores tool selection and tool settings. This keeps the visible controls and canvas behavior synchronized.
+- `useCanvas.jsx` exposes an `actions` object so other components can trigger canvas operations without owning Fabric directly.
+- History snapshots are serialized as JSON strings rather than copied object graphs. This keeps undo and redo implementation simple and makes state restoration predictable.
+- Helper artifacts such as crop overlays and heal source markers are excluded from history to avoid noisy undo behavior.
+- AI exports are split into two types:
+  - full image export for deblur, outpaint, description, and background tools
+  - image plus mask export for inpainting
+- For asynchronous backend routes, the frontend expects a `202` response with a `task_id`, then polls `/api/task/<task_id>` until the PNG result is available.
+- Background removal and background replacement currently use direct requests rather than the async polling flow used by inpaint, outpaint, and deblur.
+
+### Front End Testing Considerations
+
+The current project does not include an automated frontend test suite, so validation is largely manual.
+
+Recommended manual test cases:
+
+1. Import an image and confirm it fits into the canvas correctly.
+2. Draw with brush, mask, erase, and text tools, then verify undo and redo for each.
+3. Crop and rotate an image, then export and verify the output.
+4. Run inpaint with a small mask and confirm the returned image applies to the canvas.
+5. Run outpaint in one direction and verify the output dimensions visibly increase.
+6. Run deblur and confirm the returned image replaces the current one.
+7. Run background removal and replacement and confirm the result applies without breaking history.
+8. Resize the browser window and confirm the stage resizes without losing the current canvas state.
 ## Maintenance and Future Work
 This section helps future programmers fix bugs and extend the project quickly.
 
