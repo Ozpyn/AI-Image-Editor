@@ -22,9 +22,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 
 # Your local Restormer repo and weights
-RESTORMER_REPO_DIR = os.path.join(BASE_DIR, "restormer")
+RESTORMER_REPO_DIR = os.path.join(BASE_DIR, "Restormer")
 RESTORMER_WEIGHT_PATH = os.path.join(
-    BASE_DIR, "weights", "motion_deblurring.pth"
+    BASE_DIR, "weights", "restormer_motion_deblurring.pth"
 )
 
 # Make Restormer importable

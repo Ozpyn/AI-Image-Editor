@@ -31,6 +31,8 @@ echo "Building frontend..."
 
 npm run build
 
+cd ../ #Return to Root
+
 OS="$(uname 2>/dev/null || echo Windows)"
 ARCH="$(uname -m 2>/dev/null || echo x86_64)"
 
@@ -105,7 +107,24 @@ else
     pip install "rembg[cpu]" -q
 fi
 
-pip install -r ../srv/requirements.txt -q
+cd srv
+
+pip install -r requirements.txt -q
+
+echo "Cloning Restormer by swz30"
+git clone --quiet https://github.com/swz30/Restormer.git
+
+echo "Checking for Weights"
+if [ -f "weights/restormer_motion_deblurring.pth" ]; then
+    echo "Weights Exist ... Skipping"
+else
+    echo "Pulling Weights"
+    mkdir -p weights
+    cd weights
+    wget -q --show-progress https://github.com/swz30/Restormer/releases/download/v1.0/motion_deblurring.pth -O restormer_motion_deblurring.pth
+    cd ../  
+fi
+
 echo "Requirements Installed"
 echo "Running App"
-python3 ../srv/app.py
+python3 app.py
